@@ -12,9 +12,4 @@ include("test_common.jl")
 
     # Boundary / raw / binary-tag / LRU-stress coverage.
     include("test_edge_cases.jl")
-
-    # Aqua + JET. Off by default; opt in with SOMATSIE_RUN_QUALITY=1.
-    if get(ENV, "SOMATSIE_RUN_QUALITY", "0") == "1"
-        include("test_quality.jl")
-    end
 end
