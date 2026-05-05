@@ -11,7 +11,7 @@
 
 module LibSIE
 
-using libsie_jll: libsie
+using libsie_z_jll: libsie_z
 
 # Status codes:
 const SIE_OK                   = Cint(0)
@@ -45,74 +45,74 @@ const SIE_OUTPUT_RAW     = Cint(2)
 
 # Library info:
 sie_status_message(s::Integer) =
-    unsafe_string(ccall((:sie_status_message, libsie), Cstring, (Cint,), Cint(s)))
+    unsafe_string(ccall((:sie_status_message, libsie_z), Cstring, (Cint,), Cint(s)))
 
 # SieFile:
 sie_file_open(path, out) =
-    ccall((:sie_file_open, libsie), Cint, (Cstring, Ptr{Ptr{Cvoid}}), path, out)
+    ccall((:sie_file_open, libsie_z), Cint, (Cstring, Ptr{Ptr{Cvoid}}), path, out)
 sie_file_close(h) =
-    ccall((:sie_file_close, libsie), Cvoid, (Ptr{Cvoid},), h)
+    ccall((:sie_file_close, libsie_z), Cvoid, (Ptr{Cvoid},), h)
 
-sie_file_num_tests(h) = ccall((:sie_file_num_tests, libsie), Csize_t, (Ptr{Cvoid},), h)
-sie_file_num_tags(h)  = ccall((:sie_file_num_tags,  libsie), Csize_t, (Ptr{Cvoid},), h)
+sie_file_num_tests(h) = ccall((:sie_file_num_tests, libsie_z), Csize_t, (Ptr{Cvoid},), h)
+sie_file_num_tags(h)  = ccall((:sie_file_num_tags,  libsie_z), Csize_t, (Ptr{Cvoid},), h)
 
 sie_file_test(h, i) =
-    ccall((:sie_file_test, libsie), Ptr{Cvoid}, (Ptr{Cvoid}, Csize_t), h, Csize_t(i))
+    ccall((:sie_file_test, libsie_z), Ptr{Cvoid}, (Ptr{Cvoid}, Csize_t), h, Csize_t(i))
 sie_file_tag(h, i) =
-    ccall((:sie_file_tag,  libsie), Ptr{Cvoid}, (Ptr{Cvoid}, Csize_t), h, Csize_t(i))
+    ccall((:sie_file_tag,  libsie_z), Ptr{Cvoid}, (Ptr{Cvoid}, Csize_t), h, Csize_t(i))
 
 # Test:
-sie_test_id(h)           = ccall((:sie_test_id,           libsie), UInt32,  (Ptr{Cvoid},), h)
-sie_test_num_channels(h) = ccall((:sie_test_num_channels, libsie), Csize_t, (Ptr{Cvoid},), h)
-sie_test_num_tags(h)     = ccall((:sie_test_num_tags,     libsie), Csize_t, (Ptr{Cvoid},), h)
+sie_test_id(h)           = ccall((:sie_test_id,           libsie_z), UInt32,  (Ptr{Cvoid},), h)
+sie_test_num_channels(h) = ccall((:sie_test_num_channels, libsie_z), Csize_t, (Ptr{Cvoid},), h)
+sie_test_num_tags(h)     = ccall((:sie_test_num_tags,     libsie_z), Csize_t, (Ptr{Cvoid},), h)
 sie_test_channel(h, i) =
-    ccall((:sie_test_channel, libsie), Ptr{Cvoid}, (Ptr{Cvoid}, Csize_t), h, Csize_t(i))
+    ccall((:sie_test_channel, libsie_z), Ptr{Cvoid}, (Ptr{Cvoid}, Csize_t), h, Csize_t(i))
 sie_test_tag(h, i) =
-    ccall((:sie_test_tag,     libsie), Ptr{Cvoid}, (Ptr{Cvoid}, Csize_t), h, Csize_t(i))
+    ccall((:sie_test_tag,     libsie_z), Ptr{Cvoid}, (Ptr{Cvoid}, Csize_t), h, Csize_t(i))
 
 # Channel:
-sie_channel_id(h)       = ccall((:sie_channel_id,       libsie), UInt32,  (Ptr{Cvoid},), h)
-sie_channel_num_dims(h) = ccall((:sie_channel_num_dims, libsie), Csize_t, (Ptr{Cvoid},), h)
-sie_channel_num_tags(h) = ccall((:sie_channel_num_tags, libsie), Csize_t, (Ptr{Cvoid},), h)
+sie_channel_id(h)       = ccall((:sie_channel_id,       libsie_z), UInt32,  (Ptr{Cvoid},), h)
+sie_channel_num_dims(h) = ccall((:sie_channel_num_dims, libsie_z), Csize_t, (Ptr{Cvoid},), h)
+sie_channel_num_tags(h) = ccall((:sie_channel_num_tags, libsie_z), Csize_t, (Ptr{Cvoid},), h)
 sie_channel_name(h, ptr, len) =
-    ccall((:sie_channel_name, libsie), Cvoid, (Ptr{Cvoid}, Ptr{Ptr{UInt8}}, Ptr{Csize_t}), h, ptr, len)
+    ccall((:sie_channel_name, libsie_z), Cvoid, (Ptr{Cvoid}, Ptr{Ptr{UInt8}}, Ptr{Csize_t}), h, ptr, len)
 sie_channel_dimension(h, i) =
-    ccall((:sie_channel_dimension, libsie), Ptr{Cvoid}, (Ptr{Cvoid}, Csize_t), h, Csize_t(i))
+    ccall((:sie_channel_dimension, libsie_z), Ptr{Cvoid}, (Ptr{Cvoid}, Csize_t), h, Csize_t(i))
 sie_channel_tag(h, i) =
-    ccall((:sie_channel_tag,       libsie), Ptr{Cvoid}, (Ptr{Cvoid}, Csize_t), h, Csize_t(i))
+    ccall((:sie_channel_tag,       libsie_z), Ptr{Cvoid}, (Ptr{Cvoid}, Csize_t), h, Csize_t(i))
 
 # Dimension:
-sie_dimension_index(h)    = ccall((:sie_dimension_index,    libsie), UInt32,  (Ptr{Cvoid},), h)
-sie_dimension_num_tags(h) = ccall((:sie_dimension_num_tags, libsie), Csize_t, (Ptr{Cvoid},), h)
+sie_dimension_index(h)    = ccall((:sie_dimension_index,    libsie_z), UInt32,  (Ptr{Cvoid},), h)
+sie_dimension_num_tags(h) = ccall((:sie_dimension_num_tags, libsie_z), Csize_t, (Ptr{Cvoid},), h)
 sie_dimension_tag(h, i) =
-    ccall((:sie_dimension_tag, libsie), Ptr{Cvoid}, (Ptr{Cvoid}, Csize_t), h, Csize_t(i))
+    ccall((:sie_dimension_tag, libsie_z), Ptr{Cvoid}, (Ptr{Cvoid}, Csize_t), h, Csize_t(i))
 
 # Tag:
 sie_tag_key(h, ptr, len) =
-    ccall((:sie_tag_key,   libsie), Cvoid, (Ptr{Cvoid}, Ptr{Ptr{UInt8}}, Ptr{Csize_t}), h, ptr, len)
+    ccall((:sie_tag_key,   libsie_z), Cvoid, (Ptr{Cvoid}, Ptr{Ptr{UInt8}}, Ptr{Csize_t}), h, ptr, len)
 sie_tag_value(h, ptr, len) =
-    ccall((:sie_tag_value, libsie), Cvoid, (Ptr{Cvoid}, Ptr{Ptr{UInt8}}, Ptr{Csize_t}), h, ptr, len)
-sie_tag_is_string(h) = ccall((:sie_tag_is_string, libsie), Cint, (Ptr{Cvoid},), h)
+    ccall((:sie_tag_value, libsie_z), Cvoid, (Ptr{Cvoid}, Ptr{Ptr{UInt8}}, Ptr{Csize_t}), h, ptr, len)
+sie_tag_is_string(h) = ccall((:sie_tag_is_string, libsie_z), Cint, (Ptr{Cvoid},), h)
 
 # Spigot:
 sie_spigot_attach(file, ch, out) =
-    ccall((:sie_spigot_attach, libsie), Cint,
+    ccall((:sie_spigot_attach, libsie_z), Cint,
           (Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Ptr{Cvoid}}), file, ch, out)
-sie_spigot_free(h) = ccall((:sie_spigot_free, libsie), Cvoid, (Ptr{Cvoid},), h)
+sie_spigot_free(h) = ccall((:sie_spigot_free, libsie_z), Cvoid, (Ptr{Cvoid},), h)
 sie_spigot_get(h, out) =
-    ccall((:sie_spigot_get,   libsie), Cint,    (Ptr{Cvoid}, Ptr{Ptr{Cvoid}}), h, out)
-sie_spigot_tell(h)       = ccall((:sie_spigot_tell,       libsie), UInt64,  (Ptr{Cvoid},), h)
-sie_spigot_reset(h)      = ccall((:sie_spigot_reset,      libsie), Cvoid,   (Ptr{Cvoid},), h)
-sie_spigot_num_blocks(h) = ccall((:sie_spigot_num_blocks, libsie), Csize_t, (Ptr{Cvoid},), h)
+    ccall((:sie_spigot_get,   libsie_z), Cint,    (Ptr{Cvoid}, Ptr{Ptr{Cvoid}}), h, out)
+sie_spigot_tell(h)       = ccall((:sie_spigot_tell,       libsie_z), UInt64,  (Ptr{Cvoid},), h)
+sie_spigot_reset(h)      = ccall((:sie_spigot_reset,      libsie_z), Cvoid,   (Ptr{Cvoid},), h)
+sie_spigot_num_blocks(h) = ccall((:sie_spigot_num_blocks, libsie_z), Csize_t, (Ptr{Cvoid},), h)
 
 # Output:
-sie_output_num_dims(h) = ccall((:sie_output_num_dims, libsie), Csize_t, (Ptr{Cvoid},), h)
-sie_output_num_rows(h) = ccall((:sie_output_num_rows, libsie), Csize_t, (Ptr{Cvoid},), h)
-sie_output_block(h)    = ccall((:sie_output_block,    libsie), Csize_t, (Ptr{Cvoid},), h)
+sie_output_num_dims(h) = ccall((:sie_output_num_dims, libsie_z), Csize_t, (Ptr{Cvoid},), h)
+sie_output_num_rows(h) = ccall((:sie_output_num_rows, libsie_z), Csize_t, (Ptr{Cvoid},), h)
+sie_output_block(h)    = ccall((:sie_output_block,    libsie_z), Csize_t, (Ptr{Cvoid},), h)
 sie_output_type(h, dim) =
-    ccall((:sie_output_type, libsie), Cint, (Ptr{Cvoid}, Csize_t), h, Csize_t(dim))
+    ccall((:sie_output_type, libsie_z), Cint, (Ptr{Cvoid}, Csize_t), h, Csize_t(dim))
 sie_output_get_float64(h, dim, row, val) =
-    ccall((:sie_output_get_float64, libsie), Cint,
+    ccall((:sie_output_get_float64, libsie_z), Cint,
           (Ptr{Cvoid}, Csize_t, Csize_t, Ptr{Cdouble}),
           h, Csize_t(dim), Csize_t(row), val)
 
@@ -120,11 +120,11 @@ sie_output_get_float64(h, dim, row, val) =
 # Julia↔C crossing into one call per block. See libsie-z-optimization-notes.md
 # item (1) for design notes.
 sie_output_get_float64_range(h, dim, start_row, count, out_buf, out_written) =
-    ccall((:sie_output_get_float64_range, libsie), Cint,
+    ccall((:sie_output_get_float64_range, libsie_z), Cint,
           (Ptr{Cvoid}, Csize_t, Csize_t, Csize_t, Ptr{Cdouble}, Ptr{Csize_t}),
           h, Csize_t(dim), Csize_t(start_row), Csize_t(count), out_buf, out_written)
 sie_output_get_raw_range(h, dim, start_row, count, out_ptrs, out_sizes, out_written) =
-    ccall((:sie_output_get_raw_range, libsie), Cint,
+    ccall((:sie_output_get_raw_range, libsie_z), Cint,
           (Ptr{Cvoid}, Csize_t, Csize_t, Csize_t,
            Ptr{Ptr{UInt8}}, Ptr{UInt32}, Ptr{Csize_t}),
           h, Csize_t(dim), Csize_t(start_row), Csize_t(count),
