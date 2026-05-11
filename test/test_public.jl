@@ -1,7 +1,7 @@
 # Public-API tests for SomatSIE.jl.
 #
 # Only exercises the documented surface from the README: `opensie`,
-# `findchannel`, `sieDetach`, the unexported types (`SieFile`, `Test`,
+# `findchannel`, `detachsie`, the unexported types (`SieFile`, `Test`,
 # `Channel`, `Dimension`, `Tags`, `SieError`, `Vector*`), the dot
 # accessors (`f.tests`, `t.channels`, `ch.dims`, `ch.name`, `ch.schema`,
 # `ch.sr`, `x.tags`, `x.id`), `Dimension`'s `AbstractVector` interface
@@ -307,25 +307,25 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         @test t0.tags == Tags()
     end
 
-    @testset "sieDetach" begin
+    @testset "detachsie" begin
         # Idempotent on already-in-memory values (zero-copy: `===`).
         d = Dimension([1.0, 2.0, 3.0]; id = 2, tags = Tags("u" => "V"))
         ch = Channel("syn", [d]; id = 1)
         tt = SomatSIE.Test([ch]; id = 1)
-        @test sieDetach(d) === d
-        @test sieDetach(ch) === ch
-        @test sieDetach(tt) === tt
+        @test detachsie(d) === d
+        @test detachsie(ch) === ch
+        @test detachsie(tt) === tt
 
         # Snapshot a real file: result must outlive the SieFile.
         snapshot_tests = nothing
         opensie(FILE_MIN) do f
-            snapshot_tests = sieDetach(f)
+            snapshot_tests = detachsie(f)
             @test snapshot_tests isa Vector{SomatSIE.VectorTest}
             @test length(snapshot_tests) == length(f.tests)
 
             # Per-level collection.
             t = first(f.tests)
-            vt = sieDetach(t)
+            vt = detachsie(t)
             @test vt isa SomatSIE.VectorTest
             @test vt.id == t.id
             @test vt.tags == t.tags
@@ -333,7 +333,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
             @test all(c isa SomatSIE.VectorChannel for c in vt.channels)
 
             c = first(t.channels)
-            vc = sieDetach(c)
+            vc = detachsie(c)
             @test vc isa SomatSIE.VectorChannel
             @test vc.name == c.name
             @test vc.id == c.id
@@ -342,7 +342,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
             @test all(d isa SomatSIE.VectorDimension for d in vc.dims)
 
             d0 = first(c.dims)
-            vd = sieDetach(d0)
+            vd = detachsie(d0)
             @test vd isa SomatSIE.VectorDimension
             @test vd.id == d0.id
             @test vd.tags == d0.tags

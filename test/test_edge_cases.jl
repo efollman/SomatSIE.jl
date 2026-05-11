@@ -94,12 +94,11 @@ const FILE_CAN = joinpath(DATA, "can_raw_test-v-1-5-0-129-build-1218.sie")
         @test length(ch_empty) == 0
     end
 
-    @testset "sie_detach alias" begin
+    @testset "detachsie alias" begin
         d = Dimension([1.0, 2.0]; id = 1)
         ch = Channel("c", [d])
-        @test sie_detach === sieDetach
-        @test sie_detach(d) === d
-        @test sie_detach(ch) === ch
+        @test detachsie(d) === d
+        @test detachsie(ch) === ch
     end
 
     @testset "LRU eviction does not corrupt cache" begin
