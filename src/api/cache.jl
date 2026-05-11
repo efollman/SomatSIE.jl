@@ -24,13 +24,16 @@ mutable struct ChannelCache
     total_rows::Int
     nblocks::Int
     next_block::Int           # 1-based: index that next!(spigot) will yield
-    lru::Dict{Tuple{Int,Int}, Any}                 # (block_idx, dim_id) => Vector
+    lru::Dict{Tuple{Int,Int},Any}                 # (block_idx, dim_id) => Vector
     lru_order::Vector{Tuple{Int,Int}}              # oldest first; touch-on-read
     lru_max::Int
 end
 
-function ChannelCache(file::SieFile, ch::LibSieChannel;
-                      lru_max::Integer = _BLOCK_LRU_DEFAULT)
+function ChannelCache(
+    file::SieFile,
+    ch::LibSieChannel;
+    lru_max::Integer = _BLOCK_LRU_DEFAULT,
+)
     s = Spigot(file, ch)
     offsets = Int[0]
     nb = 0
@@ -41,10 +44,16 @@ function ChannelCache(file::SieFile, ch::LibSieChannel;
         out = next!(s)
     end
     reset!(s)
-    return ChannelCache(s, offsets, offsets[end], nb, 1,
-        Dict{Tuple{Int,Int}, Any}(),
+    return ChannelCache(
+        s,
+        offsets,
+        offsets[end],
+        nb,
+        1,
+        Dict{Tuple{Int,Int},Any}(),
         Tuple{Int,Int}[],
-        Int(lru_max))
+        Int(lru_max),
+    )
 end
 
 # Advance the persistent spigot until `next!` has yielded block `target`,
@@ -81,27 +90,43 @@ end
 # `next!`/`reset!` on the spigot). Adding any awaitable / sleep / I/O
 # between the ccall and the copy loop would be a use-after-free.
 function _decode_block(out::Output, dimid::Int, nr::Int, ct::Symbol)
-    d0      = Csize_t(dimid - 1)
+    d0 = Csize_t(dimid - 1)
     written = Ref{Csize_t}(0)
     if ct === :float64
         buf = Vector{Float64}(undef, nr)
         if nr > 0
-            GC.@preserve buf _check(L.sie_output_get_float64_range(
-                out.handle, d0, Csize_t(0), Csize_t(nr),
-                pointer(buf), written))
+            GC.@preserve buf _check(
+                L.sie_output_get_float64_range(
+                    out.handle,
+                    d0,
+                    Csize_t(0),
+                    Csize_t(nr),
+                    pointer(buf),
+                    written,
+                ),
+            )
         end
         return buf
     elseif ct === :raw
         buf = Vector{Vector{UInt8}}(undef, nr)
         if nr > 0
-            ptrs  = Vector{Ptr{UInt8}}(undef, nr)
+            ptrs = Vector{Ptr{UInt8}}(undef, nr)
             sizes = Vector{UInt32}(undef, nr)
-            GC.@preserve ptrs sizes _check(L.sie_output_get_raw_range(
-                out.handle, d0, Csize_t(0), Csize_t(nr),
-                pointer(ptrs), pointer(sizes), written))
-            @inbounds for i in 1:nr
+            GC.@preserve ptrs sizes _check(
+                L.sie_output_get_raw_range(
+                    out.handle,
+                    d0,
+                    Csize_t(0),
+                    Csize_t(nr),
+                    pointer(ptrs),
+                    pointer(sizes),
+                    written,
+                ),
+            )
+            @inbounds for i = 1:nr
                 p, n = ptrs[i], Int(sizes[i])
-                buf[i] = (p == C_NULL || n == 0) ? UInt8[] :
+                buf[i] =
+                    (p == C_NULL || n == 0) ? UInt8[] :
                     copy(unsafe_wrap(Array, p, n; own = false))
             end
         end
@@ -117,7 +142,7 @@ end
 # recently-touched key.
 function _touch_lru!(cache::ChannelCache, key::Tuple{Int,Int})
     order = cache.lru_order
-    @inbounds for i in length(order):-1:1
+    @inbounds for i = length(order):-1:1
         if order[i] == key
             i == length(order) && return cache.lru[key]
             deleteat!(order, i)
@@ -152,8 +177,8 @@ function _block_for(cache::ChannelCache, dimid::Int, block_idx::Int)
     key = (block_idx, dimid)
     haskey(cache.lru, key) && return _touch_lru!(cache, key)
     out = _advance_to(cache, block_idx)
-    nr  = numrows(out)
-    ct  = coltype(out, dimid)
+    nr = numrows(out)
+    ct = coltype(out, dimid)
     data = _decode_block(out, dimid, nr, ct)
     return _store_lru!(cache, key, data)
 end

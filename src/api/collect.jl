@@ -42,8 +42,7 @@ function sieDetach end
 
 # Dimension:
 sieDetach(d::VectorDimension) = d
-sieDetach(d::LibSieDimension) =
-    VectorDimension{eltype(d)}(collect(d), _id(d), _tags(d))
+sieDetach(d::LibSieDimension) = VectorDimension{eltype(d)}(collect(d), _id(d), _tags(d))
 
 # Channel:
 sieDetach(c::VectorChannel) = c

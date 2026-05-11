@@ -16,7 +16,7 @@ ts = tags(ch)
 sr = get(ts, "core:sample_rate", nothing)
 ```
 """
-const Tags = Dict{String, Union{String, Vector{UInt8}}}
+const Tags = Dict{String,Union{String,Vector{UInt8}}}
 
 # Internal: build a Tags dict from a libsie parent handle.
 #
@@ -26,12 +26,12 @@ const Tags = Dict{String, Union{String, Vector{UInt8}}}
 function _build_tags(parent_handle::Ptr{Cvoid}, count::Integer, getter)
     out = Tags()
     sizehint!(out, count)
-    for i in 0:(count - 1)
+    for i = 0:(count-1)
         h = getter(parent_handle, i)
         h == C_NULL && continue
         k = _ptrlen_to_string(L.sie_tag_key, h)
-        v = L.sie_tag_is_string(h) != 0 ?
-            _ptrlen_to_string(L.sie_tag_value, h) :
+        v =
+            L.sie_tag_is_string(h) != 0 ? _ptrlen_to_string(L.sie_tag_value, h) :
             _ptrlen_to_bytes(L.sie_tag_value, h)
         out[k] = v
     end

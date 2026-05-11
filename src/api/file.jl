@@ -20,12 +20,12 @@ mutable struct SieFile
     # lazily on first vector-like access of a `Dimension`. Keyed by the
     # libsie channel handle (stable for the file's lifetime). Type-erased
     # to `Any` because `ChannelCache` is defined further down in this file.
-    caches::Dict{Ptr{Cvoid}, Any}
+    caches::Dict{Ptr{Cvoid},Any}
 
     function SieFile(path::AbstractString)
         out = Ref{Ptr{Cvoid}}(C_NULL)
         _check(L.sie_file_open(String(path), out))
-        sf = new(out[], String(path), Dict{Ptr{Cvoid}, Any}())
+        sf = new(out[], String(path), Dict{Ptr{Cvoid},Any}())
         finalizer(_finalize_file, sf)
         return sf
     end
@@ -41,7 +41,10 @@ function _close_caches!(sf::SieFile)
         catch err
             # Best-effort: don't let a single bad spigot block cleanup,
             # but surface the failure so it isn't silently swallowed.
-            @warn "SomatSIE: failed to close cached spigot during file cleanup" exception=(err, catch_backtrace())
+            @warn "SomatSIE: failed to close cached spigot during file cleanup" exception=(
+                err,
+                catch_backtrace(),
+            )
         end
     end
     empty!(sf.caches)
@@ -113,10 +116,10 @@ function _test(sf::SieFile, i::Integer)
     p == C_NULL ? throw(BoundsError(sf, i)) : LibSieTest(p, sf)
 end
 
-_tests(sf::SieFile) = [_test(sf, i) for i in 1:_ntests(sf)]
+_tests(sf::SieFile) = [_test(sf, i) for i = 1:_ntests(sf)]
 
-_tags(sf::SieFile) = (h = _check_open(sf);
-    _build_tags(h, Int(L.sie_file_num_tags(h)), L.sie_file_tag))
+_tags(sf::SieFile) =
+    (h = _check_open(sf); _build_tags(h, Int(L.sie_file_num_tags(h)), L.sie_file_tag))
 
 """
     findchannel(test, name::AbstractString) -> Channel | nothing
@@ -135,15 +138,16 @@ end
 
 function Base.getproperty(sf::SieFile, sym::Symbol)
     sym === :tests && return _tests(sf)
-    sym === :tags  && return _tags(sf)
+    sym === :tags && return _tags(sf)
     sym === :channels && error(
         "`SieFile` has no `channels` property because channel ids may " *
         "collide between tests. Iterate via `f.tests` instead, e.g. " *
-        "[ch for t in f.tests for ch in t.channels].")
+        "[ch for t in f.tests for ch in t.channels].",
+    )
     return getfield(sf, sym)
 end
 Base.propertynames(::SieFile, private::Bool = false) =
     private ? (:tests, :tags, :path, :handle, :caches) : (:tests, :tags, :path)
 
-Base.show(io::IO, sf::SieFile) = print(io,
-    "SieFile(", repr(sf.path), isopen(sf) ? "" : ", closed", ")")
+Base.show(io::IO, sf::SieFile) =
+    print(io, "SieFile(", repr(sf.path), isopen(sf) ? "" : ", closed", ")")

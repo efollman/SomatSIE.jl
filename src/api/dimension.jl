@@ -52,25 +52,31 @@ end
 
 # Public outer constructor — `Dimension(data; ...)` resolves through the
 # `const Dimension = AbstractDimension` alias to this method.
-function (::Type{AbstractDimension})(data::AbstractVector;
-                                     id::Integer = 1, tags::Tags = Tags())
+function (::Type{AbstractDimension})(
+    data::AbstractVector;
+    id::Integer = 1,
+    tags::Tags = Tags(),
+)
     v = data isa Vector ? data : collect(data)
     T = eltype(v)
     return VectorDimension{T}(v, Int(id), tags)
 end
 
 # Internal accessors — split per concrete type:
-_id(d::LibSieDimension)   = (_check_open((d.parent::LibSieChannel).parent::SieFile);
-    Int(L.sie_dimension_index(d.handle)) + 1)
-_tags(d::LibSieDimension) = (_check_open((d.parent::LibSieChannel).parent::SieFile);
-    _build_tags(d.handle,
-    Int(L.sie_dimension_num_tags(d.handle)), L.sie_dimension_tag))
+_id(d::LibSieDimension) = (
+    _check_open((d.parent::LibSieChannel).parent::SieFile);
+    Int(L.sie_dimension_index(d.handle)) + 1
+)
+_tags(d::LibSieDimension) = (
+    _check_open((d.parent::LibSieChannel).parent::SieFile);
+    _build_tags(d.handle, Int(L.sie_dimension_num_tags(d.handle)), L.sie_dimension_tag)
+)
 
-_id(d::VectorDimension)   = d.id
+_id(d::VectorDimension) = d.id
 _tags(d::VectorDimension) = d.tags
 
 function Base.getproperty(d::LibSieDimension, sym::Symbol)
-    sym === :id   && return _id(d)
+    sym === :id && return _id(d)
     sym === :tags && return _tags(d)
     return getfield(d, sym)
 end
@@ -84,7 +90,7 @@ Base.show(io::IO, d::AbstractDimension) =
     print(io, "Dimension{", eltype(d), "}(id=", _id(d), ", n=", length(d), ")")
 
 # ── VectorDimension: AbstractArray interface (delegates to backing data) ──
-Base.size(d::VectorDimension)             = size(d.data)
+Base.size(d::VectorDimension) = size(d.data)
 Base.IndexStyle(::Type{<:VectorDimension}) = IndexLinear()
 Base.@propagate_inbounds Base.getindex(d::VectorDimension, i::Integer) = d.data[i]
 
@@ -105,16 +111,15 @@ Base.@propagate_inbounds Base.getindex(d::VectorDimension, i::Integer) = d.data[
 #   ChannelCache, _channel_cache, _block_for, _locate_row, _readdim
 
 Base.size(d::LibSieDimension) =
-    (_channel_cache(d.parent.parent::SieFile,
-                    d.parent::LibSieChannel).total_rows,)
+    (_channel_cache(d.parent.parent::SieFile, d.parent::LibSieChannel).total_rows,)
 Base.IndexStyle(::Type{<:LibSieDimension}) = IndexLinear()
 
 # Full materialization. Walks the channel via the persistent spigot,
 # decoding each block once via the libsie bulk range getters and caching
 # the result in the per-channel block LRU. Subsequent index/range/collect
 # calls hit the cache and avoid any new ccalls.
-Base.collect(d::LibSieDimension)            = _readdim(d)
-Base.getindex(d::LibSieDimension, ::Colon)  = _readdim(d)
+Base.collect(d::LibSieDimension) = _readdim(d)
+Base.getindex(d::LibSieDimension, ::Colon) = _readdim(d)
 
 # Single-sample read. Translates the row index to (block_idx, row_in_block)
 # via the cached cumulative-row offsets (binary search on a small `Vector`),
@@ -122,13 +127,13 @@ Base.getindex(d::LibSieDimension, ::Colon)  = _readdim(d)
 # stores it).
 function Base.getindex(d::LibSieDimension, i::Integer)
     i >= 1 || throw(BoundsError(d, i))
-    ch    = d.parent::LibSieChannel
-    file  = ch.parent::SieFile
+    ch = d.parent::LibSieChannel
+    file = ch.parent::SieFile
     cache = _channel_cache(file, ch)
     Int(i) > cache.total_rows && throw(BoundsError(d, i))
     block_idx, row_in_block = _locate_row(cache, Int(i) - 1)
     data = _block_for(cache, _id(d), block_idx)
-    return data[row_in_block + 1]
+    return data[row_in_block+1]
 end
 
 # Range read. Walks only the blocks overlapping the requested range. Each
@@ -140,31 +145,32 @@ function Base.getindex(d::LibSieDimension, r::AbstractUnitRange{<:Integer})
         return eltype(d) === Float64 ? Float64[] : Vector{UInt8}[]
     end
     first(r) >= 1 || throw(BoundsError(d, first(r)))
-    ch    = d.parent::LibSieChannel
-    file  = ch.parent::SieFile
+    ch = d.parent::LibSieChannel
+    file = ch.parent::SieFile
     cache = _channel_cache(file, ch)
     Int(last(r)) > cache.total_rows && throw(BoundsError(d, last(r)))
     dimid = _id(d)
-    lo0   = Int(first(r)) - 1   # 0-based, inclusive
-    hi0   = Int(last(r))  - 1   # 0-based, inclusive
+    lo0 = Int(first(r)) - 1   # 0-based, inclusive
+    hi0 = Int(last(r)) - 1   # 0-based, inclusive
     blo, _ = _locate_row(cache, lo0)
     bhi, _ = _locate_row(cache, hi0)
     et = eltype(d)
-    result = et === Float64 ? Vector{Float64}(undef, length(r)) :
-                              Vector{Vector{UInt8}}(undef, length(r))
+    result =
+        et === Float64 ? Vector{Float64}(undef, length(r)) :
+        Vector{Vector{UInt8}}(undef, length(r))
     pos = 1
-    @inbounds for b in blo:bhi
+    @inbounds for b = blo:bhi
         block = _block_for(cache, dimid, b)
         block_start0 = cache.offsets[b]
-        block_end0   = cache.offsets[b + 1] - 1
+        block_end0 = cache.offsets[b+1] - 1
         # local_lo/local_hi are 0-based offsets within the block; copying
         # uses 1-based indexing (block[local_lo + 1 + k]). Correct because
         # each block boundary is enforced by the cache's offsets table.
         local_lo = max(lo0, block_start0) - block_start0
-        local_hi = min(hi0, block_end0)   - block_start0
+        local_hi = min(hi0, block_end0) - block_start0
         n = local_hi - local_lo + 1
-        @inbounds for k in 0:(n - 1)
-            result[pos + k] = block[local_lo + 1 + k]
+        @inbounds for k = 0:(n-1)
+            result[pos+k] = block[local_lo+1+k]
         end
         pos += n
     end

@@ -8,12 +8,20 @@
 
 using Test
 using SomatSIE
-using SomatSIE: SieFile, Spigot, Output,
-                opensie,
-                spigot,
-                next!, numrows, numdims, numblocks, block, coltype,
-                getfloat64,
-                reset!
+using SomatSIE:
+    SieFile,
+    Spigot,
+    Output,
+    opensie,
+    spigot,
+    next!,
+    numrows,
+    numdims,
+    numblocks,
+    block,
+    coltype,
+    getfloat64,
+    reset!
 
 @testset "Internal API" begin
 

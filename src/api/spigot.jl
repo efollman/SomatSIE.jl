@@ -61,9 +61,9 @@ function spigot(f::Function, file::SieFile, ch::LibSieChannel)
     end
 end
 
-numblocks(s::Spigot)     = Int(L.sie_spigot_num_blocks(s.handle))
+numblocks(s::Spigot) = Int(L.sie_spigot_num_blocks(s.handle))
 Base.position(s::Spigot) = Int(L.sie_spigot_tell(s.handle))
-reset!(s::Spigot)        = (L.sie_spigot_reset(s.handle); s.gen += UInt64(1); s)
+reset!(s::Spigot) = (L.sie_spigot_reset(s.handle); s.gen += UInt64(1); s)
 
 """
     next!(s::Spigot) -> Output | nothing
@@ -105,21 +105,21 @@ getters (`sie_output_get_float64_range` / `sie_output_get_raw_range`), so
 each block costs a single `ccall` instead of one per sample.
 """
 function _readdim(d::LibSieDimension)
-    ch    = d.parent::LibSieChannel
-    file  = ch.parent::SieFile
+    ch = d.parent::LibSieChannel
+    file = ch.parent::SieFile
     cache = _channel_cache(file, ch)
-    et    = eltype(d)
-    cache.total_rows == 0 &&
-        return et === Float64 ? Float64[] : Vector{UInt8}[]
+    et = eltype(d)
+    cache.total_rows == 0 && return et === Float64 ? Float64[] : Vector{UInt8}[]
     dimid = _id(d)
-    result = et === Float64 ? Vector{Float64}(undef, cache.total_rows) :
-                              Vector{Vector{UInt8}}(undef, cache.total_rows)
+    result =
+        et === Float64 ? Vector{Float64}(undef, cache.total_rows) :
+        Vector{Vector{UInt8}}(undef, cache.total_rows)
     pos = 1
-    @inbounds for b in 1:cache.nblocks
+    @inbounds for b = 1:cache.nblocks
         block = _block_for(cache, dimid, b)
         n = length(block)
-        for k in 1:n
-            result[pos + k - 1] = block[k]
+        for k = 1:n
+            result[pos+k-1] = block[k]
         end
         pos += n
     end
@@ -138,5 +138,5 @@ directly from `core:sample_rate` instead of reading dim-0.
 """
 numrows(file::SieFile, ch::LibSieChannel) = _channel_cache(file, ch).total_rows
 
-Base.show(io::IO, s::Spigot) = print(io,
-    "Spigot(channel=", _id(s.channel), isopen(s) ? "" : ", closed", ")")
+Base.show(io::IO, s::Spigot) =
+    print(io, "Spigot(channel=", _id(s.channel), isopen(s) ? "" : ", closed", ")")

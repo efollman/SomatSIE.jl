@@ -18,7 +18,7 @@ const FILE_CAN = joinpath(DATA, "can_raw_test-v-1-5-0-129-build-1218.sie")
                 n == 0 && continue
                 full = collect(dim)
                 # Empty range — should produce a typed empty vector.
-                empty_r = dim[n:n-1]
+                empty_r = dim[n:(n-1)]
                 @test isempty(empty_r)
                 @test eltype(empty_r) === eltype(dim)
                 # Single-element range == single-index read.
@@ -95,10 +95,10 @@ const FILE_CAN = joinpath(DATA, "can_raw_test-v-1-5-0-129-build-1218.sie")
     end
 
     @testset "sie_detach alias" begin
-        d  = Dimension([1.0, 2.0]; id = 1)
+        d = Dimension([1.0, 2.0]; id = 1)
         ch = Channel("c", [d])
         @test sie_detach === sieDetach
-        @test sie_detach(d)  === d
+        @test sie_detach(d) === d
         @test sie_detach(ch) === ch
     end
 
@@ -115,7 +115,7 @@ const FILE_CAN = joinpath(DATA, "can_raw_test-v-1-5-0-129-build-1218.sie")
                 full = collect(dim)
                 # Touch many small windows to exercise the LRU.
                 step = max(1, n ÷ 32)
-                for i in 1:step:n
+                for i = 1:step:n
                     j = min(i + 3, n)
                     @test dim[i:j] == full[i:j]
                 end

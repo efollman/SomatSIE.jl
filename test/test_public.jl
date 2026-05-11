@@ -15,9 +15,7 @@
 
 using Test
 using SomatSIE
-using SomatSIE: SieFile, Tags,
-                Channel, Dimension,
-                opensie, findchannel
+using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
 
 @testset "Public API" begin
 
@@ -82,8 +80,8 @@ using SomatSIE: SieFile, Tags,
             @test d.tags isa Tags
             # propertynames advertises the dot-public surface
             @test :tests in propertynames(f)
-            @test :id    in propertynames(t)
-            @test :dims  in propertynames(c)
+            @test :id in propertynames(t)
+            @test :dims in propertynames(c)
             # SieFile has no `channels` property — must go through tests
             @test_throws ErrorException f.channels
         end
@@ -121,17 +119,17 @@ using SomatSIE: SieFile, Tags,
             ch = first(first(f.tests).channels)
             for dim in ch.dims
                 full = collect(dim)
-                n    = length(full)
+                n = length(full)
                 @test length(dim) == n
-                @test size(dim)   == (n,)
+                @test size(dim) == (n,)
                 @test eltype(dim) === eltype(full)
                 # dim[:] equals collect(dim)
-                @test dim[:]       == full
+                @test dim[:] == full
                 if n > 0
-                    @test dim[1]      == full[1]
-                    @test dim[end]    == full[end]
+                    @test dim[1] == full[1]
+                    @test dim[end] == full[end]
                     @test firstindex(dim) == 1
-                    @test lastindex(dim)  == n
+                    @test lastindex(dim) == n
                     mid = (n + 1) ÷ 2
                     @test dim[mid] == full[mid]
                     # range read
@@ -143,7 +141,7 @@ using SomatSIE: SieFile, Tags,
                 end
                 # bounds
                 @test_throws BoundsError dim[0]
-                @test_throws BoundsError dim[n + 1]
+                @test_throws BoundsError dim[n+1]
             end
         end
     end
@@ -191,10 +189,8 @@ using SomatSIE: SieFile, Tags,
 
     @testset "In-memory Channel / Dimension construction" begin
         # Build a VectorDimension via the public Dimension(...) constructor.
-        d1 = Dimension([1.0, 2.0, 3.0, 4.0]; id = 1,
-                       tags = Tags("core:units" => "s"))
-        d2 = Dimension(Float32[10, 20, 30, 40]; id = 2,
-                       tags = Tags("core:units" => "V"))
+        d1 = Dimension([1.0, 2.0, 3.0, 4.0]; id = 1, tags = Tags("core:units" => "s"))
+        d2 = Dimension(Float32[10, 20, 30, 40]; id = 2, tags = Tags("core:units" => "V"))
         # Subtype, parametric eltype, AbstractVector behaviour.
         @test d1 isa SomatSIE.Dimension                # abstract supertype
         @test d1 isa SomatSIE.VectorDimension{Float64}
@@ -211,9 +207,12 @@ using SomatSIE: SieFile, Tags,
         @test d1.tags["core:units"] == "s"
 
         # Build a VectorChannel via the public Channel(...) constructor.
-        ch = Channel("synthetic", [d1, d2]; id = 7,
-                     tags = Tags("core:sample_rate" => "100",
-                                 "core:schema" => "timhis"))
+        ch = Channel(
+            "synthetic",
+            [d1, d2];
+            id = 7,
+            tags = Tags("core:sample_rate" => "100", "core:schema" => "timhis"),
+        )
         @test ch isa SomatSIE.Channel                  # abstract supertype
         @test ch isa SomatSIE.VectorChannel
         @test ch.id == 7
@@ -227,8 +226,7 @@ using SomatSIE: SieFile, Tags,
 
         # A function typed for `Channel`/`Dimension` can consume the
         # synthetic objects without modification:
-        sample_at(c::SomatSIE.Channel, i::Integer) =
-            (c.dims[1][i], c.dims[2][i])
+        sample_at(c::SomatSIE.Channel, i::Integer) = (c.dims[1][i], c.dims[2][i])
         @test sample_at(ch, 3) == (3.0, 30.0f0)
 
         # Reject non-AbstractDimension entries up-front.
@@ -244,7 +242,7 @@ using SomatSIE: SieFile, Tags,
 
     @testset "In-memory types are mutable" begin
         vd = Dimension([1.0, 2.0, 3.0]; id = 1, tags = Tags("u" => "s"))
-        vd.id   = 7
+        vd.id = 7
         vd.tags = Tags("u" => "ms")
         vd.data = [10.0, 20.0]
         @test vd.id == 7
@@ -254,18 +252,18 @@ using SomatSIE: SieFile, Tags,
 
         vc = Channel("a", [vd]; id = 1)
         vc.name = "b"
-        vc.id   = 2
+        vc.id = 2
         vc.tags = Tags("core:schema" => "timhis")
-        vd2     = Dimension([0.0])
+        vd2 = Dimension([0.0])
         vc.dims = SomatSIE.AbstractDimension[vd, vd2]
         @test vc.name == "b"
-        @test vc.id   == 2
+        @test vc.id == 2
         @test vc.schema == "timhis"
         @test length(vc.dims) == 2
 
         vt = SomatSIE.Test([vc]; id = 1)
-        vt.id       = 9
-        vt.tags     = Tags("op" => "ef")
+        vt.id = 9
+        vt.tags = Tags("op" => "ef")
         vt.channels = SomatSIE.AbstractChannel[vc]
         @test vt.id == 9
         @test vt.tags["op"] == "ef"
@@ -274,14 +272,12 @@ using SomatSIE: SieFile, Tags,
 
     @testset "In-memory Test construction" begin
         d1 = Dimension([0.0, 0.01, 0.02, 0.03]; id = 1)
-        d2 = Dimension([1.0, 2.0, 3.0, 4.0];   id = 2)
-        ch1 = Channel("ch_a", [d1, d2]; id = 1,
-                      tags = Tags("core:sample_rate" => "100"))
+        d2 = Dimension([1.0, 2.0, 3.0, 4.0]; id = 2)
+        ch1 = Channel("ch_a", [d1, d2]; id = 1, tags = Tags("core:sample_rate" => "100"))
         ch2 = Channel("ch_b", [Dimension(Float32[10, 20, 30])]; id = 2)
 
         # Build a VectorTest via SomatSIE.Test(...).
-        t = SomatSIE.Test([ch1, ch2]; id = 5,
-                          tags = Tags("operator" => "ef"))
+        t = SomatSIE.Test([ch1, ch2]; id = 5, tags = Tags("operator" => "ef"))
         @test t isa SomatSIE.Test            # abstract supertype
         @test t isa SomatSIE.VectorTest
         @test t.id == 5
@@ -297,8 +293,7 @@ using SomatSIE: SieFile, Tags,
         @test findchannel(t, "missing") === nothing
 
         # A function typed for `Test` consumes the synthetic test:
-        nrows(test::SomatSIE.Test) =
-            sum(length(first(c.dims)) for c in test.channels)
+        nrows(test::SomatSIE.Test) = sum(length(first(c.dims)) for c in test.channels)
         @test nrows(t) == 4 + 3
 
         # Reject non-AbstractChannel entries up-front.
@@ -314,10 +309,10 @@ using SomatSIE: SieFile, Tags,
 
     @testset "sieDetach" begin
         # Idempotent on already-in-memory values (zero-copy: `===`).
-        d  = Dimension([1.0, 2.0, 3.0]; id = 2, tags = Tags("u" => "V"))
+        d = Dimension([1.0, 2.0, 3.0]; id = 2, tags = Tags("u" => "V"))
         ch = Channel("syn", [d]; id = 1)
         tt = SomatSIE.Test([ch]; id = 1)
-        @test sieDetach(d)  === d
+        @test sieDetach(d) === d
         @test sieDetach(ch) === ch
         @test sieDetach(tt) === tt
 
@@ -341,7 +336,7 @@ using SomatSIE: SieFile, Tags,
             vc = sieDetach(c)
             @test vc isa SomatSIE.VectorChannel
             @test vc.name == c.name
-            @test vc.id   == c.id
+            @test vc.id == c.id
             @test vc.tags == c.tags
             @test length(vc.dims) == length(c.dims)
             @test all(d isa SomatSIE.VectorDimension for d in vc.dims)
@@ -349,7 +344,7 @@ using SomatSIE: SieFile, Tags,
             d0 = first(c.dims)
             vd = sieDetach(d0)
             @test vd isa SomatSIE.VectorDimension
-            @test vd.id   == d0.id
+            @test vd.id == d0.id
             @test vd.tags == d0.tags
             @test collect(vd) == collect(d0)
             @test eltype(vd) === eltype(d0)

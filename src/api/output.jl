@@ -23,14 +23,13 @@ end
 @inline function _check_output(o::Output)
     sp = o.parent::Spigot
     sp.handle == C_NULL && error("Output's spigot is closed")
-    sp.gen == o.gen ||
-        error("Output is invalidated: spigot has advanced past this block")
+    sp.gen == o.gen || error("Output is invalidated: spigot has advanced past this block")
     return nothing
 end
 
 numdims(o::Output) = (_check_output(o); Int(L.sie_output_num_dims(o.handle)))
 numrows(o::Output) = (_check_output(o); Int(L.sie_output_num_rows(o.handle)))
-block(o::Output)   = (_check_output(o); Int(L.sie_output_block(o.handle)))
+block(o::Output) = (_check_output(o); Int(L.sie_output_block(o.handle)))
 
 """
     coltype(out::Output, dim::Integer) -> Symbol
@@ -41,9 +40,7 @@ function coltype(o::Output, dim::Integer)
     _check_output(o)
     1 <= dim <= numdims(o) || throw(BoundsError(o, dim))
     t = L.sie_output_type(o.handle, dim - 1)
-    t == L.SIE_OUTPUT_FLOAT64 ? :float64 :
-    t == L.SIE_OUTPUT_RAW     ? :raw     :
-                                :none
+    t == L.SIE_OUTPUT_FLOAT64 ? :float64 : t == L.SIE_OUTPUT_RAW ? :raw : :none
 end
 
 """
@@ -60,5 +57,5 @@ function getfloat64(o::Output, dim::Integer, row::Integer)
 end
 
 Base.size(o::Output) = (numrows(o), numdims(o))
-Base.show(io::IO, o::Output) = print(io,
-    "Output(block=", block(o), ", rows=", numrows(o), ", dims=", numdims(o), ")")
+Base.show(io::IO, o::Output) =
+    print(io, "Output(block=", block(o), ", rows=", numrows(o), ", dims=", numdims(o), ")")

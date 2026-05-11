@@ -84,9 +84,6 @@ include("api/collect.jl")
 # avoids name collisions with `Base.Channel` (Tasks), `Test.Test` (the
 # stdlib testing module), and any user-defined `SieFile`/`Tags`/`Dimension`.
 # Only the verbs `opensie` and `findchannel` are exported.
-export opensie,
-       findchannel,
-       sieDetach,
-       sie_detach
+export opensie, findchannel, sieDetach, sie_detach
 
 end # module SomatSIE

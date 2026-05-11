@@ -9,8 +9,7 @@ struct SieError <: Exception
     message::String
 end
 
-Base.showerror(io::IO, e::SieError) =
-    print(io, "SieError(", e.code, "): ", e.message)
+Base.showerror(io::IO, e::SieError) = print(io, "SieError(", e.code, "): ", e.message)
 
 @inline function _check(rc::Integer)
     rc == L.SIE_OK && return nothing

@@ -52,28 +52,37 @@ end
 
 # Public outer constructor — `Channel(name, dims; ...)` resolves through
 # the `const Channel = AbstractChannel` alias to this method.
-function (::Type{AbstractChannel})(name::AbstractString,
-                                   dims::AbstractVector;
-                                   id::Integer = 1, tags::Tags = Tags())
+function (::Type{AbstractChannel})(
+    name::AbstractString,
+    dims::AbstractVector;
+    id::Integer = 1,
+    tags::Tags = Tags(),
+)
     ds = Vector{AbstractDimension}(undef, length(dims))
     @inbounds for (i, d) in enumerate(dims)
-        d isa AbstractDimension || throw(ArgumentError(
-            "Channel dims must be `AbstractDimension`s; got $(typeof(d))"))
+        d isa AbstractDimension || throw(
+            ArgumentError("Channel dims must be `AbstractDimension`s; got $(typeof(d))"),
+        )
         ds[i] = d
     end
     return VectorChannel(String(name), Int(id), tags, ds)
 end
 
-_id(c::LibSieChannel)       = (_check_open(c.parent::SieFile); Int(L.sie_channel_id(c.handle)) + 1)
-_name(c::LibSieChannel)     = (_check_open(c.parent::SieFile); _ptrlen_to_string(L.sie_channel_name, c.handle))
-_numdims(c::LibSieChannel)  = (_check_open(c.parent::SieFile); Int(L.sie_channel_num_dims(c.handle)))
-_tags(c::LibSieChannel)     = (_check_open(c.parent::SieFile); _build_tags(c.handle,
-    Int(L.sie_channel_num_tags(c.handle)), L.sie_channel_tag))
+_id(c::LibSieChannel) =
+    (_check_open(c.parent::SieFile); Int(L.sie_channel_id(c.handle)) + 1)
+_name(c::LibSieChannel) =
+    (_check_open(c.parent::SieFile); _ptrlen_to_string(L.sie_channel_name, c.handle))
+_numdims(c::LibSieChannel) =
+    (_check_open(c.parent::SieFile); Int(L.sie_channel_num_dims(c.handle)))
+_tags(c::LibSieChannel) = (
+    _check_open(c.parent::SieFile);
+    _build_tags(c.handle, Int(L.sie_channel_num_tags(c.handle)), L.sie_channel_tag)
+)
 
-_id(c::VectorChannel)       = c.id
-_name(c::VectorChannel)     = c.name
-_numdims(c::VectorChannel)  = length(c.dims)
-_tags(c::VectorChannel)     = c.tags
+_id(c::VectorChannel) = c.id
+_name(c::VectorChannel) = c.name
+_numdims(c::VectorChannel) = length(c.dims)
+_tags(c::VectorChannel) = c.tags
 
 # `core:schema` tag, or `nothing` if absent. Polymorphic over both subtypes.
 _schema(c::AbstractChannel) = get(_tags(c), "core:schema", nothing)
@@ -104,7 +113,7 @@ function _dimensions(c::LibSieChannel)
     n = _numdims(c)
     types = _probe_dim_eltypes(c, n)
     out = Vector{AbstractDimension}(undef, n)
-    @inbounds for i in 1:n
+    @inbounds for i = 1:n
         h = L.sie_channel_dimension(c.handle, i - 1)
         h == C_NULL && throw(BoundsError(c, i))
         out[i] = LibSieDimension{types[i]}(h, c)
@@ -112,9 +121,9 @@ function _dimensions(c::LibSieChannel)
     return out
 end
 
-_dimension(c::VectorChannel, i::Integer)  = (1 <= i <= length(c.dims) ||
-    throw(BoundsError(c, i)); c.dims[i])
-_dimensions(c::VectorChannel)             = c.dims
+_dimension(c::VectorChannel, i::Integer) =
+    (1 <= i <= length(c.dims) || throw(BoundsError(c, i)); c.dims[i])
+_dimensions(c::VectorChannel) = c.dims
 
 # Probe the element types of all dimensions of a channel by attaching a
 # transient spigot, reading the type tag of the first block, and freeing.
@@ -138,11 +147,11 @@ function _probe_dim_eltypes(c::LibSieChannel, n::Int)
         _check(rc)
         outh = out_ref[]
         outh == C_NULL && return types  # also treat NULL as end-of-stream
-        @inbounds for i in 1:n
+        @inbounds for i = 1:n
             t = L.sie_output_type(outh, Csize_t(i - 1))
-            types[i] = t == L.SIE_OUTPUT_FLOAT64 ? Float64       :
-                       t == L.SIE_OUTPUT_RAW     ? Vector{UInt8} :
-                                                   Float64
+            types[i] =
+                t == L.SIE_OUTPUT_FLOAT64 ? Float64 :
+                t == L.SIE_OUTPUT_RAW ? Vector{UInt8} : Float64
         end
     finally
         L.sie_spigot_free(sp)
@@ -151,25 +160,32 @@ function _probe_dim_eltypes(c::LibSieChannel, n::Int)
 end
 
 function Base.getproperty(c::LibSieChannel, sym::Symbol)
-    sym === :id         && return _id(c)
-    sym === :name       && return _name(c)
-    sym === :dims       && return _dimensions(c)
-    sym === :tags       && return _tags(c)
-    sym === :schema     && return _schema(c)
-    sym === :sr         && return _sample_rate(c)
+    sym === :id && return _id(c)
+    sym === :name && return _name(c)
+    sym === :dims && return _dimensions(c)
+    sym === :tags && return _tags(c)
+    sym === :schema && return _schema(c)
+    sym === :sr && return _sample_rate(c)
     return getfield(c, sym)
 end
 function Base.getproperty(c::VectorChannel, sym::Symbol)
-    sym === :schema     && return _schema(c)
-    sym === :sr         && return _sample_rate(c)
+    sym === :schema && return _schema(c)
+    sym === :sr && return _sample_rate(c)
     return getfield(c, sym)   # id, name, dims, tags are real fields
 end
 Base.propertynames(::AbstractChannel, private::Bool = false) =
     (:id, :name, :dims, :tags, :schema, :sr)
 
-Base.show(io::IO, c::AbstractChannel) =
-    print(io, "Channel(id=", _id(c), ", name=", repr(_name(c)),
-              ", ndims=", _numdims(c), ")")
+Base.show(io::IO, c::AbstractChannel) = print(
+    io,
+    "Channel(id=",
+    _id(c),
+    ", name=",
+    repr(_name(c)),
+    ", ndims=",
+    _numdims(c),
+    ")",
+)
 
 """
     length(ch::SomatSIE.Channel) -> Int
@@ -184,7 +200,5 @@ invariant libsie maintains for SIE channels and which `Channel(...)`
 construction does not enforce — mixed-length `VectorChannel`s will
 report the length of dim 1 only.
 """
-Base.length(c::LibSieChannel) =
-    _channel_cache(c.parent::SieFile, c).total_rows
-Base.length(c::VectorChannel) =
-    isempty(c.dims) ? 0 : length(@inbounds c.dims[1])
+Base.length(c::LibSieChannel) = _channel_cache(c.parent::SieFile, c).total_rows
+Base.length(c::VectorChannel) = isempty(c.dims) ? 0 : length(@inbounds c.dims[1])
