@@ -11,7 +11,7 @@
 #
 # Internal helpers (`spigot`, `Spigot`, `Output`, `next!`, `numrows`,
 # `numdims`, `numblocks`, `block`, `coltype`, `getfloat64`, `reset!`,
-# `LibSie*`) are NOT used here \u2014 see `test_internal.jl`.
+# `LibSie*`) are NOT used here - see `test_internal.jl`.
 
 using Test
 using SomatSIE
