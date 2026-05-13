@@ -1,11 +1,11 @@
-abstract vector math ops need to return original type if possible, 
-(currently dereferences to regular Vector) 
-+ maybe uneeded with this implemented but shorcut constructor that pulls props from already existing object and vector to create new could be useful.
+Change types from AbstratTest,AbstratChannel,AbstractDimension to Test,Channel,Dimension ect, While reading from file those variant types should be FileTest,FileChannel,FileDimension
 
-should channel be subtype of AbstractMatrix? 
-would cause issues possibly with raw data and channel types that dont have similar vector lengths 
-e.g. histogram. does AbstractMatrix handle sparse cases, does something else handle this?
+dimension should no longer behave as a dimension, rather it should have the propery .vec which will return the proper vector type for the dimension, for in memory version this vector should be settable (i.e. dim.vec .*= 2 should edit the vector held in the property) with file type trying to change the vector directly should error
 
-should remove detachsie and add method to base read function.
-remove caching as well as currently it is too confusing what is being held in memory and when.
-with this if possible have optional argument to read partial vector (index input)
+remove caching as well as currently it is too confusing what is being held in memory and when. however keep the ability to pull partial vecs with index efficiently with in file types.
+
+findchannel currently only works with Test type, it should also work with vector of channels type.
+
+findchannel should also work with Int/UInt input pulling off id number rather than channel name as well.
+
+?? fix indexing with channel vecs to be from id (sparce Vecor may make this not horrible, however it might make things too complicated in general to work with or implement.)
