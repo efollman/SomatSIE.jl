@@ -77,14 +77,27 @@ _tags(d::LibSieDimension) = (
 _id(d::Dimension) = d.id
 _tags(d::Dimension) = d.tags
 
+
+_dim_tag(d::Union{Dimension,LibSieDimension}, key::AbstractString, default::AbstractString="") =
+    get(_tags(d), key, default)
+
+_label(d::Union{Dimension,LibSieDimension}) = _dim_tag(d, "core:label")
+_units(d::Union{Dimension,LibSieDimension}) = _dim_tag(d, "core:units")
+
+
 function Base.getproperty(d::LibSieDimension, sym::Symbol)
     sym === :id && return _id(d)
     sym === :tags && return _tags(d)
     sym === :vec && return DimensionVecRef(d)
+    sym === :data && return DimensionVecRef(d)
+    sym === :label && return _label(d)
+    sym === :units && return _units(d)
     return getfield(d, sym)
 end
 function Base.getproperty(d::Dimension, sym::Symbol)
     sym === :data && return getfield(d, :vec)
+    sym === :label && return _label(d)
+    sym === :units && return _units(d)
     return getfield(d, sym)
 end
 function Base.setproperty!(d::Dimension, sym::Symbol, v)
@@ -92,7 +105,7 @@ function Base.setproperty!(d::Dimension, sym::Symbol, v)
     return setfield!(d, sym, v)
 end
 Base.propertynames(d::Union{Dimension,LibSieDimension}, private::Bool = false) =
-    private ? (fieldnames(typeof(d))..., :id, :tags, :vec) : (:id, :tags, :vec)
+    private ? (fieldnames(typeof(d))..., :id, :tags, :vec, :data, :label, :units) : (:id, :tags, :vec, :data, :label, :units)
 
 Base.show(io::IO, d::Union{Dimension,LibSieDimension}) =
     print(io, "Dimension(id=", _id(d), ", n=", length(d), ")")

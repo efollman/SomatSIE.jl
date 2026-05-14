@@ -92,6 +92,27 @@ function _sample_rate(c::Union{Channel,LibSieChannel})
     s = v isa AbstractString ? v : String(copy(v))
     return something(tryparse(Float64, s), NaN)
 end
+
+_ch_tag(c::Union{Channel,LibSieChannel}, key::AbstractString, default::AbstractString="") =
+    get(_tags(c), key, default)
+
+_ch_tag_float(c::Union{Channel,LibSieChannel}, key::AbstractString) = begin
+    v = get(_tags(c), key, nothing)
+    v === nothing && return NaN
+    sv = v isa AbstractString ? v : String(copy(v))
+    return something(tryparse(Float64, sv), NaN)
+end
+
+_desc(c::Union{Channel,LibSieChannel}) = _ch_tag(c, "core:description")
+_dtype(c::Union{Channel,LibSieChannel}) = _ch_tag(c, "data_type")
+_ffrq(c::Union{Channel,LibSieChannel}) = _ch_tag_float(c, "somat:digital_filter_attenuation_frequency")
+_ftyp(c::Union{Channel,LibSieChannel}) = _ch_tag(c, "somat:digital_filter_type")
+_rmin(c::Union{Channel,LibSieChannel}) = _ch_tag_float(c, "somat:physical_range_min")
+_rmax(c::Union{Channel,LibSieChannel}) = _ch_tag_float(c, "somat:physical_range_max")
+_eunt(c::Union{Channel,LibSieChannel}) = _ch_tag(c, "somat:output_units")
+_ermin(c::Union{Channel,LibSieChannel}) = _ch_tag_float(c, "somat:electrical_range_min")
+_ermax(c::Union{Channel,LibSieChannel}) = _ch_tag_float(c, "somat:electrical_range_max")
+
 function _is_timeseries_schema(c::Union{Channel,LibSieChannel})
     schema = _schema(c)
     schema == "timhis" && return true
@@ -172,6 +193,15 @@ function Base.getproperty(c::LibSieChannel, sym::Symbol)
     sym === :tags && return _tags(c)
     sym === :schema && return _schema(c)
     sym === :sr && return _sample_rate(c)
+    sym === :desc && return _desc(c)
+    sym === :dtype && return _dtype(c)
+    sym === :ffrq && return _ffrq(c)
+    sym === :ftyp && return _ftyp(c)
+    sym === :rmin && return _rmin(c)
+    sym === :rmax && return _rmax(c)
+    sym === :eunt && return _eunt(c)
+    sym === :ermin && return _ermin(c)
+    sym === :ermax && return _ermax(c)
     sym === :time && return _time(c)
     sym === :data && return _data(c)
     return getfield(c, sym)
@@ -179,12 +209,21 @@ end
 function Base.getproperty(c::Channel, sym::Symbol)
     sym === :schema && return _schema(c)
     sym === :sr && return _sample_rate(c)
+    sym === :desc && return _desc(c)
+    sym === :dtype && return _dtype(c)
+    sym === :ffrq && return _ffrq(c)
+    sym === :ftyp && return _ftyp(c)
+    sym === :rmin && return _rmin(c)
+    sym === :rmax && return _rmax(c)
+    sym === :eunt && return _eunt(c)
+    sym === :ermin && return _ermin(c)
+    sym === :ermax && return _ermax(c)
     sym === :time && return _time(c)
     sym === :data && return _data(c)
     return getfield(c, sym)   # id, name, dims, tags are real fields
 end
 Base.propertynames(::Union{Channel,LibSieChannel}, private::Bool = false) =
-    (:id, :name, :dims, :tags, :schema, :sr, :time, :data)
+    (:id, :name, :dims, :tags, :schema, :sr, :desc, :dtype, :ffrq, :ftyp, :rmin, :rmax, :eunt, :ermin, :ermax, :time, :data)
 
 Base.show(io::IO, c::Union{Channel,LibSieChannel}) = print(
     io,
