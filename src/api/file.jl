@@ -75,6 +75,26 @@ function opensie(f::Function, path::AbstractString)
     end
 end
 
+
+
+"""
+    readsie(path::AbstractString) -> Vector{Test}
+
+Open the SIE file at `path`, detach every test/channel/dimension into
+in-memory vectors, close the file handle, and return the detached
+`Vector{Test}` snapshot.
+
+This is a convenience wrapper for:
+
+```julia
+opensie(path) do f
+    detachsie(f)
+end
+```
+"""
+readsie(path::AbstractString) = opensie(path) do f
+    detachsie(f)
+end
 function _check_open(sf::SieFile)
     sf.handle == C_NULL && throw(SieError(-1, "SieFile is closed"))
     return sf.handle

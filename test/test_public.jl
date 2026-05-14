@@ -308,6 +308,28 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         @test t0.tags == Tags()
     end
 
+    @testset "readsie" begin
+        snapshot_tests = readsie(FILE_MIN)
+        @test snapshot_tests isa Vector{SomatSIE.Test}
+        @test !isempty(snapshot_tests)
+        for vt in snapshot_tests
+            @test vt isa SomatSIE.Test
+            for vc in vt.channels
+                @test vc isa SomatSIE.Channel
+                for vd in vc.dims
+                    @test vd isa SomatSIE.Dimension
+                    @test vd.vec isa AbstractVector
+                end
+            end
+        end
+
+        via_open = opensie(FILE_MIN) do f
+            detachsie(f)
+        end
+        @test length(snapshot_tests) == length(via_open)
+        @test map(t -> t.id, snapshot_tests) == map(t -> t.id, via_open)
+    end
+
     @testset "detachsie" begin
         # Idempotent on already-in-memory values (zero-copy: `===`).
         d = Dimension([1.0, 2.0, 3.0]; id = 2, tags = Tags("u" => "V"))
