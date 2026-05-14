@@ -308,6 +308,28 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         @test t0.tags == Tags()
     end
 
+    @testset "readsie" begin
+        snapshot_tests = readsie(FILE_MIN)
+        @test snapshot_tests isa Vector{SomatSIE.Test}
+        @test !isempty(snapshot_tests)
+        for vt in snapshot_tests
+            @test vt isa SomatSIE.Test
+            for vc in vt.channels
+                @test vc isa SomatSIE.Channel
+                for vd in vc.dims
+                    @test vd isa SomatSIE.Dimension
+                    @test vd.vec isa AbstractVector
+                end
+            end
+        end
+
+        via_open = opensie(FILE_MIN) do f
+            detachsie(f)
+        end
+        @test length(snapshot_tests) == length(via_open)
+        @test map(t -> t.id, snapshot_tests) == map(t -> t.id, via_open)
+    end
+
     @testset "detachsie" begin
         # Idempotent on already-in-memory values (zero-copy: `===`).
         d = Dimension([1.0, 2.0, 3.0]; id = 2, tags = Tags("u" => "V"))
@@ -362,6 +384,39 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
             end
         end
     end
+
+    @testset "id sorting on read/detach and vector sort overloads" begin
+        d2 = Dimension([2.0]; id = 2)
+        d1 = Dimension([1.0]; id = 1)
+        ch2 = Channel("b", [d2, d1]; id = 2)
+        ch1 = Channel("a", [d2]; id = 1)
+        t2 = SomatSIE.Test([ch2, ch1]; id = 2)
+        t1 = SomatSIE.Test([ch2]; id = 1)
+
+        @test map(x -> x.id, sort([d2, d1])) == [1, 2]
+        @test map(x -> x.id, sort([ch2, ch1])) == [1, 2]
+        @test map(x -> x.id, sort([t2, t1])) == [1, 2]
+
+        opensie(FILE_MIN) do f
+            @test issorted(map(x -> x.id, f.tests))
+            for t in f.tests
+                @test issorted(map(x -> x.id, t.channels))
+                for c in t.channels
+                    @test issorted(map(x -> x.id, c.dims))
+                end
+            end
+
+            detached = detachsie(f)
+            @test issorted(map(x -> x.id, detached))
+            for t in detached
+                @test issorted(map(x -> x.id, t.channels))
+                for c in t.channels
+                    @test issorted(map(x -> x.id, c.dims))
+                end
+            end
+        end
+    end
+
 
     @testset "use-after-close raises" begin
         # Borrowed Test/Channel/Dimension references must not silently

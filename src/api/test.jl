@@ -83,7 +83,7 @@ function _channel(t::LibSieTest, i::Integer)
     h == C_NULL ? throw(BoundsError(t, i)) : LibSieChannel(h, t.parent)
 end
 
-_channels(t::LibSieTest) = [_channel(t, i) for i = 1:_nchannels(t)]
+_channels(t::LibSieTest) = sort([_channel(t, i) for i = 1:_nchannels(t)]; by = _id)
 
 _channel(t::Test, i::Integer) =
     (1 <= i <= length(t.channels) || throw(BoundsError(t, i)); t.channels[i])
@@ -102,3 +102,9 @@ Base.propertynames(::Union{Test,LibSieTest}, private::Bool = false) = (:id, :cha
 
 Base.show(io::IO, t::Union{Test,LibSieTest}) =
     print(io, "Test(id=", _id(t), ", nchannels=", _nchannels(t), ")")
+
+
+Base.sort(v::AbstractVector{<:Union{Test,LibSieTest}}; by = _id, kws...) =
+    invoke(Base.sort, Tuple{AbstractVector}, v; by = by, kws...)
+Base.sort!(v::AbstractVector{<:Union{Test,LibSieTest}}; by = _id, kws...) =
+    invoke(Base.sort!, Tuple{AbstractVector}, v; by = by, kws...)

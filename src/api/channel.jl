@@ -145,7 +145,7 @@ function _dimensions(c::LibSieChannel)
         h == C_NULL && throw(BoundsError(c, i))
         out[i] = LibSieDimension{types[i]}(h, c)
     end
-    return out
+    return sort(out; by = _id)
 end
 
 _dimension(c::Channel, i::Integer) =
@@ -251,3 +251,9 @@ report the length of dim 1 only.
 """
 Base.length(c::LibSieChannel) = numrows(c.parent::SieFile, c)
 Base.length(c::Channel) = isempty(c.dims) ? 0 : length(@inbounds c.dims[1])
+
+
+Base.sort(v::AbstractVector{<:Union{Channel,LibSieChannel}}; by = _id, kws...) =
+    invoke(Base.sort, Tuple{AbstractVector}, v; by = by, kws...)
+Base.sort!(v::AbstractVector{<:Union{Channel,LibSieChannel}}; by = _id, kws...) =
+    invoke(Base.sort!, Tuple{AbstractVector}, v; by = by, kws...)

@@ -153,3 +153,9 @@ Base.collect(d::LibSieDimension) = _readdim(d)
 # so sequential traversal decodes each block once and then reuses it —
 # cheap, and crucially it does NOT eagerly materialize the entire
 # dimension before yielding the first element.
+
+
+Base.sort(v::AbstractVector{<:Union{Dimension,LibSieDimension}}; by = _id, kws...) =
+    invoke(Base.sort, Tuple{AbstractVector}, v; by = by, kws...)
+Base.sort!(v::AbstractVector{<:Union{Dimension,LibSieDimension}}; by = _id, kws...) =
+    invoke(Base.sort!, Tuple{AbstractVector}, v; by = by, kws...)

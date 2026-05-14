@@ -47,18 +47,18 @@ detachsie(d::LibSieDimension) = Dimension{eltype(d)}(collect(d), _id(d), _tags(d
 # Channel:
 detachsie(c::Channel) = c
 function detachsie(c::LibSieChannel)
-    dims = Dimension[detachsie(d) for d in _dimensions(c)]
+    dims = sort(Dimension[detachsie(d) for d in _dimensions(c)]; by = _id)
     return Channel(_name(c), dims; id = _id(c), tags = _tags(c))
 end
 
 # Test:
 detachsie(t::Test) = t
 function detachsie(t::LibSieTest)
-    chs = Channel[detachsie(c) for c in _channels(t)]
+    chs = sort(Channel[detachsie(c) for c in _channels(t)]; by = _id)
     return Test(chs; id = _id(t), tags = _tags(t))
 end
 
 # SieFile: collect every test. Returns a plain `Vector{Test}`
 # rather than a synthetic `SieFile` (we have no in-memory `SieFile`
 # subtype, and a SIE file is not a meaningful concept once detached).
-detachsie(sf::SieFile) = Test[detachsie(t) for t in _tests(sf)]
+detachsie(sf::SieFile) = sort(Test[detachsie(t) for t in _tests(sf)]; by = _id)
