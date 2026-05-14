@@ -1,2 +1,0 @@
-implement sortchannels function (for both Test and Vector of Channels) to sorth the vector channel by id number (only in memory type)
-implement readsie function as a shortcut for opening, detaching everything, and closing a file.
