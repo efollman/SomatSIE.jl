@@ -89,7 +89,7 @@ function _test(sf::SieFile, i::Integer)
     p == C_NULL ? throw(BoundsError(sf, i)) : LibSieTest(p, sf)
 end
 
-_tests(sf::SieFile) = [_test(sf, i) for i = 1:_ntests(sf)]
+_tests(sf::SieFile) = sort([_test(sf, i) for i = 1:_ntests(sf)]; by = _id)
 
 _tags(sf::SieFile) =
     (h = _check_open(sf); _build_tags(h, Int(L.sie_file_num_tags(h)), L.sie_file_tag))
