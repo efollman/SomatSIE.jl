@@ -109,7 +109,7 @@ _filtfreq(c::Union{Channel,LibSieChannel}) = _ch_tag_float(c, "somat:digital_fil
 _filttype(c::Union{Channel,LibSieChannel}) = _ch_tag(c, "somat:digital_filter_type")
 _rangemin(c::Union{Channel,LibSieChannel}) = _ch_tag_float(c, "somat:physical_range_min")
 _rangemax(c::Union{Channel,LibSieChannel}) = _ch_tag_float(c, "somat:physical_range_max")
-_eunits(c::Union{Channel,LibSieChannel}) = _ch_tag(c, "somat:output_units")
+_eunits(c::Union{Channel,LibSieChannel}) = _ch_tag(c, "somat:electrical_units")
 _erangemin(c::Union{Channel,LibSieChannel}) = _ch_tag_float(c, "somat:electrical_range_min")
 _erangemax(c::Union{Channel,LibSieChannel}) = _ch_tag_float(c, "somat:electrical_range_max")
 
