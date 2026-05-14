@@ -1,1 +1,0 @@
-implement readsie function as a shortcut for opening, detaching everything, and closing a file.
