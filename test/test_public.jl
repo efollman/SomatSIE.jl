@@ -169,7 +169,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
             ch = first(first(f.tests).channels)
             @test length(ch) == length(first(ch.dims))
         end
-        # VectorChannel: length of dim 1, 0 when empty.
+        # Channel: length of dim 1, 0 when empty.
         vc = Channel("c", [Dimension([1.0, 2.0, 3.0])])
         @test length(vc) == 3
         empty_vc = Channel("e", Union{SomatSIE.Dimension,SomatSIE.LibSieDimension}[])
@@ -192,7 +192,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
     end
 
     @testset "In-memory Channel / Dimension construction" begin
-        # Build a VectorDimension via the public Dimension(...) constructor.
+        # Build a Dimension via the public Dimension(...) constructor.
         d1 = Dimension([1.0, 2.0, 3.0, 4.0]; id = 1, tags = Tags("core:units" => "s"))
         d2 = Dimension(Float32[10, 20, 30, 40]; id = 2, tags = Tags("core:units" => "V"))
         # Subtype, parametric eltype, AbstractVector behaviour.
@@ -210,7 +210,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         @test d1.id == 1
         @test d1.tags["core:units"] == "s"
 
-        # Build a VectorChannel via the public Channel(...) constructor.
+        # Build a Channel via the public Channel(...) constructor.
         ch = Channel(
             "synthetic",
             [d1, d2];
@@ -233,7 +233,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         sample_at(c::SomatSIE.Channel, i::Integer) = (c.dims[1][i], c.dims[2][i])
         @test sample_at(ch, 3) == (3.0, 30.0f0)
 
-        # Reject non-AbstractDimension entries up-front.
+        # Reject non-FileDimension entries up-front.
         @test_throws ArgumentError Channel("bad", [d1, [1.0, 2.0]])
 
         # Empty defaults.
@@ -259,7 +259,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         vc.id = 2
         vc.tags = Tags("core:schema" => "timhis")
         vd2 = Dimension([0.0])
-        vc.dims = SomatSIE.AbstractDimension[vd, vd2]
+        vc.dims = Union{SomatSIE.Dimension,SomatSIE.LibSieDimension}[vd, vd2]
         @test vc.name == "b"
         @test vc.id == 2
         @test vc.schema == "timhis"
@@ -268,7 +268,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         vt = SomatSIE.Test([vc]; id = 1)
         vt.id = 9
         vt.tags = Tags("op" => "ef")
-        vt.channels = SomatSIE.AbstractChannel[vc]
+        vt.channels = Union{SomatSIE.Channel,SomatSIE.LibSieChannel}[vc]
         @test vt.id == 9
         @test vt.tags["op"] == "ef"
         @test length(vt.channels) == 1
@@ -280,7 +280,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         ch1 = Channel("ch_a", [d1, d2]; id = 1, tags = Tags("core:sample_rate" => "100"))
         ch2 = Channel("ch_b", [Dimension(Float32[10, 20, 30])]; id = 2)
 
-        # Build a VectorTest via SomatSIE.Test(...).
+        # Build a Test via SomatSIE.Test(...).
         t = SomatSIE.Test([ch1, ch2]; id = 5, tags = Tags("operator" => "ef"))
         @test t isa SomatSIE.Test            # abstract supertype
         @test t isa SomatSIE.Test
@@ -290,7 +290,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         @test t.channels[2] === ch2
         @test t.tags["operator"] == "ef"
 
-        # `findchannel` works on any AbstractTest because it only uses
+        # `findchannel` works on any FileTest because it only uses
         # `t.channels` and `c.name`.
         @test findchannel(t, "ch_a") === ch1
         @test findchannel(t, "ch_b") === ch2
@@ -303,7 +303,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         nrows(test::SomatSIE.Test) = sum(length(first(c.dims)) for c in test.channels)
         @test nrows(t) == 4 + 3
 
-        # Reject non-AbstractChannel entries up-front.
+        # Reject non-FileChannel entries up-front.
         @test_throws ArgumentError SomatSIE.Test([ch1, "not a channel"])
 
         # Empty defaults.

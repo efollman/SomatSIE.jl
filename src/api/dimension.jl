@@ -1,7 +1,7 @@
 # Dimension:
 """
-    AbstractDimension{T} <: AbstractVector{T}
-    const Dimension = AbstractDimension
+    FileDimension{T} <: AbstractVector{T}
+    const Dimension = FileDimension
 
 A single axis ("column") of a [`Channel`](@ref). Two concrete subtypes:
 
@@ -10,7 +10,7 @@ A single axis ("column") of a [`Channel`](@ref). Two concrete subtypes:
   so random/range access only decodes the necessary blocks. Element type
   is determined by probing the channel: `Float64` for engineering-value
   columns, `Vector{UInt8}` for raw payload columns (e.g. CAN frames).
-* [`VectorDimension{T}`](@ref) — backed by an in-memory `Vector{T}`.
+* [`Dimension{T}`](@ref) — backed by an in-memory `Vector{T}`.
   Cheap to construct from edited or synthetic data, and lets functions
   written for `Channel`/`Dimension` consume hand-built input.
 
@@ -20,12 +20,12 @@ work. Identity and metadata: `dim.id` (1-based), `dim.tags`.
 
 Construct an in-memory dimension via:
 
-    Dimension(data::AbstractVector; id=1, tags=Tags()) -> VectorDimension
+    Dimension(data::AbstractVector; id=1, tags=Tags()) -> Dimension
 """
 abstract type FileDimension{T} <: AbstractVector{T} end
 
 """
-    LibSieDimension{T} <: AbstractDimension{T}
+    LibSieDimension{T} <: FileDimension{T}
 
 A `Dimension` backed by a libsie handle on an open [`SieFile`](@ref).
 Constructed only by the library; reads are cached per-channel.
@@ -36,7 +36,7 @@ struct LibSieDimension{T} <: FileDimension{T}
 end
 
 """
-    VectorDimension{T} <: AbstractDimension{T}
+    Dimension{T} <: FileDimension{T}
 
 A `Dimension` whose samples live in a regular Julia `Vector{T}`. Build
 one with `Dimension(data; id=1, tags=Tags())`. Mutable: `vd.id`,
@@ -49,7 +49,7 @@ mutable struct Dimension{T} <: AbstractVector{T}
 end
 
 # Public outer constructor — `Dimension(data; ...)` resolves through the
-# `const Dimension = AbstractDimension` alias to this method.
+# `const Dimension = FileDimension` alias to this method.
 function Dimension(
     data::AbstractVector;
     id::Integer = 1,
@@ -89,7 +89,7 @@ Base.propertynames(d::Union{Dimension,LibSieDimension}, private::Bool = false) =
 Base.show(io::IO, d::Union{Dimension,LibSieDimension}) =
     print(io, "Dimension{", eltype(d), "}(id=", _id(d), ", n=", length(d), ")")
 
-# ── VectorDimension: AbstractArray interface (delegates to backing data) ──
+# ── Dimension: AbstractArray interface (delegates to backing data) ──
 Base.size(d::Dimension) = size(d.vec)
 Base.IndexStyle(::Type{<:Dimension}) = IndexLinear()
 Base.@propagate_inbounds Base.getindex(d::Dimension, i::Integer) = d.vec[i]

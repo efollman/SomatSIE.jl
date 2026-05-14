@@ -15,7 +15,7 @@ Access via dot syntax on either subtype: `t.id`, `t.channels`, `t.tags`.
 
 Construct an in-memory test via:
 
-    SomatSIE.Test(channels::AbstractVector{<:AbstractChannel};
+    SomatSIE.Test(channels::AbstractVector{<:FileChannel};
                   id=1, tags=Tags()) -> Test
 
 `Test` is unexported; access it as `SomatSIE.Test` to avoid clashing
@@ -57,7 +57,7 @@ function Test(
     cs = Vector{Union{Channel,LibSieChannel}}(undef, length(channels))
     @inbounds for (i, c) in enumerate(channels)
         c isa Union{Channel,LibSieChannel} || throw(
-            ArgumentError("Test channels must be `AbstractChannel`s; got $(typeof(c))"),
+            ArgumentError("Test channels must be `FileChannel`s; got $(typeof(c))"),
         )
         cs[i] = c
     end

@@ -8,7 +8,7 @@ A data series within a [`SieFile`](@ref). Two concrete subtypes:
 * [`LibSieChannel`](@ref) — backed by a libsie handle on an open
   [`SieFile`](@ref). All metadata and dimension data come from the file.
 * [`Channel`](@ref) — backed by hand-built dimensions
-  ([`Dimension`](@ref) or any other `AbstractDimension`). Lets you
+  ([`Dimension`](@ref) or any other `FileDimension`). Lets you
   pass synthetic / edited data to functions written against `Channel`.
 
 Access via dot syntax on either subtype: `ch.id`, `ch.name`, `ch.dims`,
@@ -18,7 +18,7 @@ tag, or `nothing`) and `ch.sr` (the `core:sample_rate` tag parsed as
 
 Construct an in-memory channel via:
 
-    Channel(name::AbstractString, dims::AbstractVector{<:AbstractDimension};
+    Channel(name::AbstractString, dims::AbstractVector{<:FileDimension};
             id=1, tags=Tags()) -> Channel
 """
 abstract type FileChannel end
@@ -59,7 +59,7 @@ function Channel(
     ds = Vector{Union{Dimension,LibSieDimension}}(undef, length(dims))
     @inbounds for (i, d) in enumerate(dims)
         d isa Union{Dimension,LibSieDimension} || throw(
-            ArgumentError("Channel dims must be `AbstractDimension`s; got $(typeof(d))"),
+            ArgumentError("Channel dims must be `FileDimension`s; got $(typeof(d))"),
         )
         ds[i] = d
     end
