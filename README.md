@@ -249,10 +249,6 @@ calling it on a `VectorChannel` returns the same object (`===`).
 
 The C ABI exposed by `libsie_jll` (v0.3) is read-only in this package: there is currently no high-level write API for creating or editing SIE files.
 
-## Versioning
-
-This is a major rewrite (v0.3). Earlier `0.x` versions of `SomatSIE.jl` parsed SIE files in pure Julia and returned a nested `Dict` from `parseSIE(path)`. That API is gone — use `opensie(path) do f ... end` and walk the `file → channel → dimension` tree, indexing each `dim` directly (`dim[i]`, `dim[a:b]`, `collect(dim)`) to materialize data.
-
 ## License
 
 MIT, matching the original project. The underlying `libsie-z` library is LGPL 2.1.
