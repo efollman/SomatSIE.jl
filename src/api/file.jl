@@ -16,44 +16,18 @@ do-block form so the underlying libsie handle is released automatically:
 mutable struct SieFile
     handle::Ptr{Cvoid}
     path::String
-    # Per-channel cache of decoded blocks + a persistent spigot. Populated
-    # lazily on first vector-like access of a `Dimension`. Keyed by the
-    # libsie channel handle (stable for the file's lifetime). Type-erased
-    # to `Any` because `ChannelCache` is defined further down in this file.
-    caches::Dict{Ptr{Cvoid},Any}
 
     function SieFile(path::AbstractString)
         out = Ref{Ptr{Cvoid}}(C_NULL)
         _check(L.sie_file_open(String(path), out))
-        sf = new(out[], String(path), Dict{Ptr{Cvoid},Any}())
+        sf = new(out[], String(path))
         finalizer(_finalize_file, sf)
         return sf
     end
 end
 
-# Close every cached spigot for `sf` and forget them. Must run BEFORE the
-# underlying file handle is freed, because spigots are owned by the file.
-function _close_caches!(sf::SieFile)
-    isempty(sf.caches) && return nothing
-    for (_, cache) in sf.caches
-        try
-            close(cache.spigot)
-        catch err
-            # Best-effort: don't let a single bad spigot block cleanup,
-            # but surface the failure so it isn't silently swallowed.
-            @warn "SomatSIE: failed to close cached spigot during file cleanup" exception=(
-                err,
-                catch_backtrace(),
-            )
-        end
-    end
-    empty!(sf.caches)
-    return nothing
-end
-
 function _finalize_file(sf::SieFile)
     if sf.handle != C_NULL
-        _close_caches!(sf)
         L.sie_file_close(sf.handle)
         sf.handle = C_NULL
     end
@@ -67,7 +41,6 @@ borrowed `Test`/`Channel`/`Tag`/`Dimension` references become invalid.
 """
 function Base.close(sf::SieFile)
     if sf.handle != C_NULL
-        _close_caches!(sf)
         L.sie_file_close(sf.handle)
         sf.handle = C_NULL
     end
@@ -135,6 +108,18 @@ function findchannel(t::Test, chname::AbstractString)
     end
     return nothing
 end
+function findchannel(t::LibSieTest, chname::AbstractString)
+    for c in t.channels
+        c.name == chname && return c
+    end
+    return nothing
+end
+findchannel(chs::AbstractVector{<:Union{Channel,LibSieChannel}}, chname::AbstractString) =
+    findfirst(c -> c.name == chname, chs) |> i -> (i === nothing ? nothing : chs[i])
+findchannel(t::Test, chid::Integer) = findchannel(t.channels, chid)
+findchannel(t::LibSieTest, chid::Integer) = findchannel(t.channels, chid)
+findchannel(chs::AbstractVector{<:Union{Channel,LibSieChannel}}, chid::Integer) =
+    (i = findfirst(c -> c.id == chid, chs); i === nothing ? nothing : chs[i])
 
 function Base.getproperty(sf::SieFile, sym::Symbol)
     sym === :tests && return _tests(sf)
@@ -147,7 +132,7 @@ function Base.getproperty(sf::SieFile, sym::Symbol)
     return getfield(sf, sym)
 end
 Base.propertynames(::SieFile, private::Bool = false) =
-    private ? (:tests, :tags, :path, :handle, :caches) : (:tests, :tags, :path)
+    private ? (:tests, :tags, :path, :handle) : (:tests, :tags, :path)
 
 Base.show(io::IO, sf::SieFile) =
     print(io, "SieFile(", repr(sf.path), isopen(sf) ? "" : ", closed", ")")
