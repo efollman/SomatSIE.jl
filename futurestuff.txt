@@ -1,27 +1,24 @@
-remove caching as currently it is too confusing what is being held in memory and when.
-however keep the ability to pull partial vecs with index efficiently with in file types.
+Add convienience props for everything in SIETools CHInfo function similar to how .sr is right now. 
+things like units (dimension tags) should be held in the dimension and could be accessed with either dim.units or ch.data.units
+this also means timeunits and timelabel can just be units and label as well.
+also make sure this is done for all dims not just 1 & 2.
+use the shortened variable names for propery names
+numerical types should just be Float64 for simplicity (like .sr) with NaN default if tag isnt present
+string types
 
-remove parent types like AbstractTest,AbstractChannel,AbstractDimension rename in memory types to Test,Channel,Dimension ect.
+here is a snipet of the relevant code from CHInfo function:
+(note there is probably a more elegant solution than the try catch blocks to check if tags are present, please consider options)
 
-dimension should no longer behave as a Vector, rather it should have the propery .vec which will hold the vector for the dimension using the julia vector types directly,
-for in memory version this vector should be settable (e.g. dim.vec .*= 2 should edit the vector held in the property; might be easy/default behavior already as it is already mutable struct)
-inFile types should return some reference for .vec that will return data vector only with base read() function to make it more explicit that it is reading from file.
-the base read() overloading for in file type should have optional second argument for efficiently pulling partial vectors with index (e.g. read(dim.vec,1) or read(dim.vec,1:100))
-
-add .time and .data convenience props to channel type (corresponding to dim 1 and 2 respectively) if channel is timeseries schema. should return empty vectors if not to avoid errors on things
-
-Add convienience props for everything in SIETools CHInfo function similar to .sr right now. 
-things like units should be held in the dimension and could be accessed with either dim.units or ch.data.units
-use shortened names (variable names in function)
-dont implement SampleN as that wont be worth the cost.
-numerical types should just be Float64 for simplicity (including .sr) with NaN default.
-implement Float64 type for numerical for the tag dicts as well 
-Instead of tuples range props can be implemented as rangemin, rangemax, erangemin, erangemax
-
-findchannel currently only works with Test type, it should also work with vector of channels
-
-findchannel should also work with number input pulling off id number rather than channel name as well.
-
-?? implement sortchannels function (for both Test and Vector of Channels) to sorth the vector channel by id number (only in memory type)
-
-?? implement readsie function as a shortcut for opening, detaching everything, and closing a file.
+description = try ch.tags["core:description"] catch e "" end
+units = try ch.dims[2].tags["core:units"] catch e "" end
+datatype = try ch.tags["data_type"] catch e "" end
+filtfreq = try ch.tags["somat:digital_filter_attenuation_frequency"] catch e NaN end
+filttype = try ch.tags["somat:digital_filter_type"] catch e "" end
+label = try ch.dims[2].tags["core:label"] catch e "" end
+rangemin = try ch.tags["somat:physical_range_min"] catch e NaN end
+rangemax = try ch.tags["somat:physical_range_max"] catch e NaN end
+timelabel = try ch.dims[1].tags["core:label"] catch e "" end
+timeunits = try ch.dims[1].tags["core:units"] catch e "" end
+eunits = try ch.tags["somat:output_units"] catch e "" end
+erangemin = try ch.tags["somat:electrical_range_min"] catch e "" end
+erangemax = try ch.tags["somat:electrical_range_max"] catch e "" end
