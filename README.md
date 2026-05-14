@@ -148,13 +148,13 @@ opensie("file.sie") do f
 
     # 2. Whole tree at once — detaches everything from the file so you
     #    can keep working after the do-block returns.
-    snapshot = sieDetach(f)
+    snapshot = detachsie(f)
     # or
-    testSnap = sieDetach(f.tests[1])
+    testSnap = detachsie(f.tests[1])
     # or
-    chSnap = sieDetach(f.tests[1].channels[1])
+    chSnap = detachsie(f.tests[1].channels[1])
     # or
-    dimSnap = sieDetach(f.tests[1].channels[1].dims[1])
+    dimSnap = detachsie(f.tests[1].channels[1].dims[1])
     # this is designed so only the information that is really needed can be loaded into memory
     # avoiding unnecessary work.
 end
@@ -162,7 +162,7 @@ end
 # every dim, channel, and test is still fully usable.
 ```
 
-Rule of thumb: **small files or whole-channel processing → `sieDetach`
+Rule of thumb: **small files or whole-channel processing → `detachsie`
 / `collect(dim)` once, then forget the file.** **Large files or sparse
 access → keep the `SieFile` open and let the cache do its job.** Both
 paths return identical values; the choice is purely about per-access
@@ -222,32 +222,32 @@ findchannel(test, "synthetic_sine") === ch   # true
 This makes it easy to feed downsampled, filtered, or otherwise edited
 data into existing pipelines without changing their type signatures.
 
-### Snapshotting a file with `sieDetach`
+### Snapshotting a file with `detachsie`
 
-`sieDetach` materializes any libsie-backed value into its in-memory
+`detachsie` materializes any libsie-backed value into its in-memory
 `Vector*` variant, recursively. The result is fully detached from the
 source `SieFile` and remains valid after the file is closed:
 
 ```julia
 snapshot = opensie("file.sie") do f
-    sieDetach(f)        # Vector{VectorTest}
+    detachsie(f)        # Vector{VectorTest}
 end
 # `snapshot` is still usable here; the file handle is gone.
 
 # Per-level: works on a Test, Channel, or Dimension too.
 opensie("file.sie") do f
-    vt = sieDetach(first(f.tests))             # VectorTest
-    vc = sieDetach(first(first(f.tests).channels))  # VectorChannel
-    vd = sieDetach(first(first(first(f.tests).channels).dims))  # VectorDimension
+    vt = detachsie(first(f.tests))             # VectorTest
+    vc = detachsie(first(first(f.tests).channels))  # VectorChannel
+    vd = detachsie(first(first(first(f.tests).channels).dims))  # VectorDimension
 end
 ```
 
-`sieDetach` is idempotent and zero-copy on already-in-memory values \u2014
+`detachsie` is idempotent and zero-copy on already-in-memory values \u2014
 calling it on a `VectorChannel` returns the same object (`===`).
 
 ## Limitations
 
-The C ABI exposed by `libsie_jll` (v0.3) now includes writer functions, however they are low-level functions geared toward appending blocks to an existing file stream or removing channels — substantial work would be required to support writing a file from scratch, including emitting the XML headers and decoders. Since the initial purpose of this library is simply to extract data from this arcane format, that functionality remains unimplemented.
+The C ABI exposed by `libsie_jll` (v0.3) is read-only in this package: there is currently no high-level write API for creating or editing SIE files.
 
 ## Versioning
 
@@ -256,11 +256,3 @@ This is a major rewrite (v0.3). Earlier `0.x` versions of `SomatSIE.jl` parsed S
 ## License
 
 MIT, matching the original project. The underlying `libsie-z` library is LGPL 2.1.
-
-
-## Recent API updates
-
-- `Dimension` now exposes `.vec` as the primary vector property. For in-memory dimensions it is the backing Julia `Vector`. For file-backed dimensions it is a lazy read reference; call `read(dim.vec)` for full data or `read(dim.vec, 1:100)` for partial reads.
-- `Channel` now exposes `ch.time` and `ch.data` convenience properties for `core:schema == "timhis"` channels (dimension 1 and 2).
-- `findchannel` accepts either a `Test` or a `Vector` of channels, and supports lookup by name (`String`) or id (`Integer`).
-- `ch.sr` is normalized to `Float64` and returns `NaN` if missing/unparseable.
