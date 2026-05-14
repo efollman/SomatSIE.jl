@@ -1,11 +1,27 @@
-Change types from AbstratTest,AbstratChannel,AbstractDimension to Test,Channel,Dimension ect, While reading from file those variant types should be FileTest,FileChannel,FileDimension
+remove caching as currently it is too confusing what is being held in memory and when.
+however keep the ability to pull partial vecs with index efficiently with in file types.
 
-dimension should no longer behave as a dimension, rather it should have the propery .vec which will return the proper vector type for the dimension, for in memory version this vector should be settable (i.e. dim.vec .*= 2 should edit the vector held in the property) with file type trying to change the vector directly should error
+remove parent types like AbstractTest,AbstractChannel,AbstractDimension rename in memory types to Test,Channel,Dimension ect.
 
-remove caching as well as currently it is too confusing what is being held in memory and when. however keep the ability to pull partial vecs with index efficiently with in file types.
+dimension should no longer behave as a Vector, rather it should have the propery .vec which will hold the vector for the dimension using the julia vector types directly,
+for in memory version this vector should be settable (e.g. dim.vec .*= 2 should edit the vector held in the property; might be easy/default behavior already as it is already mutable struct)
+inFile types should return some reference for .vec that will return data vector only with base read() function to make it more explicit that it is reading from file.
+the base read() overloading for in file type should have optional second argument for efficiently pulling partial vectors with index (e.g. read(dim.vec,1) or read(dim.vec,1:100))
 
-findchannel currently only works with Test type, it should also work with vector of channels type.
+add .time and .data convenience props to channel type (corresponding to dim 1 and 2 respectively) if channel is timeseries schema. should return empty vectors if not to avoid errors on things
 
-findchannel should also work with Int/UInt input pulling off id number rather than channel name as well.
+Add convienience props for everything in SIETools CHInfo function similar to .sr right now. 
+things like units should be held in the dimension and could be accessed with either dim.units or ch.data.units
+use shortened names (variable names in function)
+dont implement SampleN as that wont be worth the cost.
+numerical types should just be Float64 for simplicity (including .sr) with NaN default.
+implement Float64 type for numerical for the tag dicts as well 
+Instead of tuples range props can be implemented as rangemin, rangemax, erangemin, erangemax
 
-?? fix indexing with channel vecs to be from id (sparce Vecor may make this not horrible, however it might make things too complicated in general to work with or implement.)
+findchannel currently only works with Test type, it should also work with vector of channels
+
+findchannel should also work with number input pulling off id number rather than channel name as well.
+
+?? implement sortchannels function (for both Test and Vector of Channels) to sorth the vector channel by id number (only in memory type)
+
+?? implement readsie function as a shortcut for opening, detaching everything, and closing a file.
