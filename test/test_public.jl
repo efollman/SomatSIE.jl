@@ -226,7 +226,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         vc.id = 2
         vc.tags = Tags("core:schema" => "timhis")
         vd2 = Dimension([0.0])
-        vc.dims = Union{SomatSIE.Dimension,SomatSIE.LibSieDimension}[vd, vd2]
+        vc.dims = SomatSIE.Dimension[vd, vd2]
         @test vc.name == "b"
         @test vc.id == 2
         @test vc.schema == "timhis"
@@ -235,7 +235,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         vt = SomatSIE.Test([vc]; id = 1)
         vt.id = 9
         vt.tags = Tags("op" => "ef")
-        vt.channels = Union{SomatSIE.Channel,SomatSIE.LibSieChannel}[vc]
+        vt.channels = SomatSIE.Channel[vc]
         @test vt.id == 9
         @test vt.tags["op"] == "ef"
         @test length(vt.channels) == 1
@@ -274,7 +274,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         @test_throws ArgumentError SomatSIE.Test([ch1, "not a channel"])
 
         # Empty defaults.
-        t0 = SomatSIE.Test(Union{SomatSIE.Channel,SomatSIE.LibSieChannel}[])
+        t0 = SomatSIE.Test(SomatSIE.Channel[])
         @test t0 isa SomatSIE.Test
         @test isempty(t0.channels)
         @test t0.id == 1

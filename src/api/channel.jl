@@ -45,7 +45,7 @@ mutable struct Channel
     name::String
     id::Int
     tags::Tags
-    dims::Vector{Union{Dimension,LibSieDimension}}
+    dims::Vector{Dimension}
 end
 
 # Public outer constructor — `Channel(name, dims; ...)` resolves through
@@ -56,10 +56,10 @@ function Channel(
     id::Integer = 1,
     tags::Tags = Tags(),
 )
-    ds = Vector{Union{Dimension,LibSieDimension}}(undef, length(dims))
+    ds = Vector{Dimension}(undef, length(dims))
     @inbounds for (i, d) in enumerate(dims)
-        d isa Union{Dimension,LibSieDimension} || throw(
-            ArgumentError("Channel dims must be `FileDimension`s; got $(typeof(d))"),
+        d isa Dimension || throw(
+            ArgumentError("Channel dims must be `Dimension`s; got $(typeof(d))"),
         )
         ds[i] = d
     end
@@ -118,7 +118,7 @@ function _dimensions(c::LibSieChannel)
     _check_open(c.parent::SieFile)
     n = _numdims(c)
     types = _probe_dim_eltypes(c, n)
-    out = Vector{Union{Dimension,LibSieDimension}}(undef, n)
+    out = Vector{LibSieDimension}(undef, n)
     @inbounds for i = 1:n
         h = L.sie_channel_dimension(c.handle, i - 1)
         h == C_NULL && throw(BoundsError(c, i))
