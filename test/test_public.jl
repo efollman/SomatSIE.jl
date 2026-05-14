@@ -89,8 +89,10 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
             @test c.data isa AbstractVector || c.data isa SomatSIE.Dimension
             @test first(c.dims).label isa AbstractString
             @test first(c.dims).units isa AbstractString
+            @test first(c.dims).description isa AbstractString
             @test c.dims[min(2, length(c.dims))].label isa AbstractString
             @test c.dims[min(2, length(c.dims))].units isa AbstractString
+            @test c.dims[min(2, length(c.dims))].description isa AbstractString
             d = first(c.dims)
             @test d.id isa Integer
             @test d.tags isa Tags
@@ -178,6 +180,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         # Property accessors.
         @test d1.id == 1
         @test d1.tags["core:units"] == "s"
+        @test d1.description == ""
 
         # Build a Channel via the public Channel(...) constructor.
         ch = Channel(
