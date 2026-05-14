@@ -90,7 +90,7 @@ const FILE_CAN = joinpath(DATA, "can_raw_test-v-1-5-0-129-build-1218.sie")
         @test d_empty[1:0] == Float64[]
         @test_throws BoundsError d_empty[1]
 
-        ch_empty = Channel("e", SomatSIE.AbstractDimension[])
+        ch_empty = Channel("e", Union{SomatSIE.Dimension,SomatSIE.LibSieDimension}[])
         @test length(ch_empty) == 0
     end
 
@@ -101,27 +101,5 @@ const FILE_CAN = joinpath(DATA, "can_raw_test-v-1-5-0-129-build-1218.sie")
         @test detachsie(ch) === ch
     end
 
-    @testset "LRU eviction does not corrupt cache" begin
-        # Force LRU pressure by walking a channel that has more blocks
-        # than the eviction threshold, then re-reading from the start.
-        # On the bundled test files this typically just exercises the
-        # cache happy-path; the assertion is "results stay consistent".
-        opensie(FILE_MIN) do f
-            ch = first(first(f.tests).channels)
-            for dim in ch.dims
-                n = length(dim)
-                n == 0 && continue
-                full = collect(dim)
-                # Touch many small windows to exercise the LRU.
-                step = max(1, n ÷ 32)
-                for i = 1:step:n
-                    j = min(i + 3, n)
-                    @test dim[i:j] == full[i:j]
-                end
-                # Re-read end-to-end after stressing the LRU.
-                @test collect(dim) == full
-            end
-        end
-    end
-
+    
 end

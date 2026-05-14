@@ -256,3 +256,11 @@ This is a major rewrite (v0.3). Earlier `0.x` versions of `SomatSIE.jl` parsed S
 ## License
 
 MIT, matching the original project. The underlying `libsie-z` library is LGPL 2.1.
+
+
+## Recent API updates
+
+- `Dimension` now exposes `.vec` as the primary vector property. For in-memory dimensions it is the backing Julia `Vector`. For file-backed dimensions it is a lazy read reference; call `read(dim.vec)` for full data or `read(dim.vec, 1:100)` for partial reads.
+- `Channel` now exposes `ch.time` and `ch.data` convenience properties for `core:schema == "timhis"` channels (dimension 1 and 2).
+- `findchannel` accepts either a `Test` or a `Vector` of channels, and supports lookup by name (`String`) or id (`Integer`).
+- `ch.sr` is normalized to `Float64` and returns `NaN` if missing/unparseable.
