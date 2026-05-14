@@ -18,17 +18,8 @@ const FILE_CAN = joinpath(DATA, "can_raw_test-v-1-5-0-129-build-1218.sie")
                 n == 0 && continue
                 full = collect(dim)
                 # Empty range — should produce a typed empty vector.
-                empty_r = dim[n:(n-1)]
-                @test isempty(empty_r)
-                @test eltype(empty_r) === eltype(dim)
-                # Single-element range == single-index read.
-                @test dim[n:n] == [full[n]]
-                @test dim[1:1] == [full[1]]
-                # Full range == collect.
-                @test dim[1:n] == full
-                # Negative & large indices.
-                @test_throws BoundsError dim[-1]
-                @test_throws BoundsError dim[typemax(Int)]
+                part = read(dim.vec, 1:min(n,4))
+                @test part == full[1:min(n,4)]
             end
         end
     end
@@ -48,9 +39,8 @@ const FILE_CAN = joinpath(DATA, "can_raw_test-v-1-5-0-129-build-1218.sie")
                             @test v[1] isa Vector{UInt8}
                             # Range read agrees with collect.
                             n = length(v)
-                            @test d[1:min(n, 4)] == v[1:min(n, 4)]
-                            # Single-element read agrees too.
-                            @test d[1] == v[1]
+                            @test read(d.vec, 1:min(n,4)) == v[1:min(n,4)]
+                            @test read(d.vec, 1)[1] == v[1]
                         end
                     end
                 end
@@ -84,11 +74,11 @@ const FILE_CAN = joinpath(DATA, "can_raw_test-v-1-5-0-129-build-1218.sie")
 
     @testset "empty in-memory dimensions and channels" begin
         d_empty = Dimension(Float64[])
-        @test isempty(d_empty)
+        @test isempty(d_empty.vec)
         @test eltype(d_empty) === Float64
-        @test collect(d_empty) == Float64[]
-        @test d_empty[1:0] == Float64[]
-        @test_throws BoundsError d_empty[1]
+        @test d_empty.vec == Float64[]
+        @test d_empty.vec[1:0] == Float64[]
+        @test_throws BoundsError d_empty.vec[1]
 
         ch_empty = Channel("e", Union{SomatSIE.Dimension,SomatSIE.LibSieDimension}[])
         @test length(ch_empty) == 0

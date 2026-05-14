@@ -47,14 +47,14 @@ detachsie(d::LibSieDimension) = Dimension{eltype(d)}(collect(d), _id(d), _tags(d
 # Channel:
 detachsie(c::Channel) = c
 function detachsie(c::LibSieChannel)
-    dims = Union{Dimension,LibSieDimension}[detachsie(d) for d in _dimensions(c)]
+    dims = Dimension[detachsie(d) for d in _dimensions(c)]
     return Channel(_name(c), dims; id = _id(c), tags = _tags(c))
 end
 
 # Test:
 detachsie(t::Test) = t
 function detachsie(t::LibSieTest)
-    chs = Union{Channel,LibSieChannel}[detachsie(c) for c in _channels(t)]
+    chs = Channel[detachsie(c) for c in _channels(t)]
     return Test(chs; id = _id(t), tags = _tags(t))
 end
 

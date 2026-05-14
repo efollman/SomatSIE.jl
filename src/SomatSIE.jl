@@ -73,7 +73,6 @@ include("api/test.jl")
 include("api/file.jl")
 include("api/output.jl")
 include("api/spigot.jl")
-include("api/cache.jl")
 include("api/collect.jl")
 
 # Public surface

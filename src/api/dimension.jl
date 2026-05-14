@@ -22,7 +22,7 @@ Construct an in-memory dimension via:
 
     Dimension(data::AbstractVector; id=1, tags=Tags()) -> Dimension
 """
-abstract type FileDimension{T} <: AbstractVector{T} end
+abstract type FileDimension{T} end
 
 """
     LibSieDimension{T} <: FileDimension{T}
@@ -42,11 +42,15 @@ A `Dimension` whose samples live in a regular Julia `Vector{T}`. Build
 one with `Dimension(data; id=1, tags=Tags())`. Mutable: `vd.id`,
 `vd.tags`, and `vd.vec` may all be reassigned.
 """
-mutable struct Dimension{T} <: AbstractVector{T}
+mutable struct Dimension{T}
     vec::Vector{T}
     id::Int
     tags::Tags
 end
+Base.eltype(::Type{Dimension{T}}) where {T} = T
+Base.eltype(d::Dimension{T}) where {T} = T
+Base.eltype(::Type{LibSieDimension{T}}) where {T} = T
+Base.eltype(d::LibSieDimension{T}) where {T} = T
 
 # Public outer constructor — `Dimension(data; ...)` resolves through the
 # `const Dimension = FileDimension` alias to this method.
@@ -91,19 +95,23 @@ Base.propertynames(d::Union{Dimension,LibSieDimension}, private::Bool = false) =
     private ? (fieldnames(typeof(d))..., :id, :tags, :vec) : (:id, :tags, :vec)
 
 Base.show(io::IO, d::Union{Dimension,LibSieDimension}) =
-    print(io, "Dimension{", eltype(d), "}(id=", _id(d), ", n=", length(d), ")")
+    print(io, "Dimension(id=", _id(d), ", n=", length(d), ")")
 
 # ── Dimension: AbstractArray interface (delegates to backing data) ──
-Base.size(d::Dimension) = size(d.vec)
-Base.IndexStyle(::Type{<:Dimension}) = IndexLinear()
-Base.@propagate_inbounds Base.getindex(d::Dimension, i::Integer) = d.vec[i]
+Base.length(d::Dimension) = length(d.vec)
 
 struct DimensionVecRef{T}
     dim::LibSieDimension{T}
 end
 Base.read(r::DimensionVecRef) = collect(r.dim)
-Base.read(r::DimensionVecRef, i::Integer) = r.dim[i:i]
-Base.read(r::DimensionVecRef, idx::AbstractUnitRange{<:Integer}) = r.dim[idx]
+Base.read(r::DimensionVecRef, i::Integer) = read(r, i:i)
+function Base.read(r::DimensionVecRef, idx::AbstractUnitRange{<:Integer})
+    v = collect(r.dim)
+    isempty(idx) && return v[1:0]
+    first(idx) >= 1 || throw(BoundsError(v, first(idx)))
+    last(idx) <= length(v) || throw(BoundsError(v, last(idx)))
+    return v[idx]
+end
 
 # ── LibSieDimension: cache-routed access ──
 #
@@ -121,72 +129,8 @@ Base.read(r::DimensionVecRef, idx::AbstractUnitRange{<:Integer}) = r.dim[idx]
 # Forward declarations satisfied later in the load order:
 #   ChannelCache, _channel_cache, _block_for, _locate_row, _readdim
 
-Base.size(d::LibSieDimension) =
-    (_channel_cache(d.parent.parent::SieFile, d.parent::LibSieChannel).total_rows,)
-Base.IndexStyle(::Type{<:LibSieDimension}) = IndexLinear()
-
-# Full materialization. Walks the channel via the persistent spigot,
-# decoding each block once via the libsie bulk range getters and caching
-# the result in the per-channel block LRU. Subsequent index/range/collect
-# calls hit the cache and avoid any new ccalls.
+Base.length(d::LibSieDimension) = numrows((d.parent::LibSieChannel).parent::SieFile, d.parent::LibSieChannel)
 Base.collect(d::LibSieDimension) = _readdim(d)
-Base.getindex(d::LibSieDimension, ::Colon) = _readdim(d)
-
-# Single-sample read. Translates the row index to (block_idx, row_in_block)
-# via the cached cumulative-row offsets (binary search on a small `Vector`),
-# then fetches the containing block from the cache (or decodes it once and
-# stores it).
-function Base.getindex(d::LibSieDimension, i::Integer)
-    i >= 1 || throw(BoundsError(d, i))
-    ch = d.parent::LibSieChannel
-    file = ch.parent::SieFile
-    cache = _channel_cache(file, ch)
-    Int(i) > cache.total_rows && throw(BoundsError(d, i))
-    block_idx, row_in_block = _locate_row(cache, Int(i) - 1)
-    data = _block_for(cache, _id(d), block_idx)
-    return data[row_in_block+1]
-end
-
-# Range read. Walks only the blocks overlapping the requested range. Each
-# such block is fetched through the cache (decoded once, then memoized), so
-# repeated `dim[a:b]` calls over the same neighborhood pay no further
-# decoding cost.
-function Base.getindex(d::LibSieDimension, r::AbstractUnitRange{<:Integer})
-    if isempty(r)
-        return eltype(d) === Float64 ? Float64[] : Vector{UInt8}[]
-    end
-    first(r) >= 1 || throw(BoundsError(d, first(r)))
-    ch = d.parent::LibSieChannel
-    file = ch.parent::SieFile
-    cache = _channel_cache(file, ch)
-    Int(last(r)) > cache.total_rows && throw(BoundsError(d, last(r)))
-    dimid = _id(d)
-    lo0 = Int(first(r)) - 1   # 0-based, inclusive
-    hi0 = Int(last(r)) - 1   # 0-based, inclusive
-    blo, _ = _locate_row(cache, lo0)
-    bhi, _ = _locate_row(cache, hi0)
-    et = eltype(d)
-    result =
-        et === Float64 ? Vector{Float64}(undef, length(r)) :
-        Vector{Vector{UInt8}}(undef, length(r))
-    pos = 1
-    @inbounds for b = blo:bhi
-        block = _block_for(cache, dimid, b)
-        block_start0 = cache.offsets[b]
-        block_end0 = cache.offsets[b+1] - 1
-        # local_lo/local_hi are 0-based offsets within the block; copying
-        # uses 1-based indexing (block[local_lo + 1 + k]). Correct because
-        # each block boundary is enforced by the cache's offsets table.
-        local_lo = max(lo0, block_start0) - block_start0
-        local_hi = min(hi0, block_end0) - block_start0
-        n = local_hi - local_lo + 1
-        @inbounds for k = 0:(n-1)
-            result[pos+k] = block[local_lo+1+k]
-        end
-        pos += n
-    end
-    return result
-end
 
 # Iteration uses the default `AbstractArray` iterate, which calls
 # `getindex` per step. Each `getindex` hits the per-channel block cache,

@@ -44,7 +44,7 @@ with `SomatSIE.Test(channels; id=1, tags=Tags())`. Mutable: `vt.id`,
 mutable struct Test
     id::Int
     tags::Tags
-    channels::Vector{Union{Channel,LibSieChannel}}
+    channels::Vector{Channel}
 end
 
 # Public outer constructor \u2014 `SomatSIE.Test(channels; ...)` resolves
@@ -54,10 +54,10 @@ function Test(
     id::Integer = 1,
     tags::Tags = Tags(),
 )
-    cs = Vector{Union{Channel,LibSieChannel}}(undef, length(channels))
+    cs = Vector{Channel}(undef, length(channels))
     @inbounds for (i, c) in enumerate(channels)
-        c isa Union{Channel,LibSieChannel} || throw(
-            ArgumentError("Test channels must be `FileChannel`s; got $(typeof(c))"),
+        c isa Channel || throw(
+            ArgumentError("Test channels must be `Channel`s; got $(typeof(c))"),
         )
         cs[i] = c
     end
