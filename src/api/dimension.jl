@@ -83,6 +83,10 @@ function Base.getproperty(d::Dimension, sym::Symbol)
     sym === :data && return getfield(d, :vec)
     return getfield(d, sym)
 end
+function Base.setproperty!(d::Dimension, sym::Symbol, v)
+    sym === :data && return setfield!(d, :vec, v)
+    return setfield!(d, sym, v)
+end
 Base.propertynames(d::Union{Dimension,LibSieDimension}, private::Bool = false) =
     private ? (fieldnames(typeof(d))..., :id, :tags, :vec) : (:id, :tags, :vec)
 

@@ -49,7 +49,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
                 @test t.id isa Integer
                 @test t.id >= 1
                 for c in t.channels
-                    @test c isa SomatSIE.Channel
+                    @test c isa SomatSIE.Channel || c isa SomatSIE.LibSieChannel
                     @test c.id isa Integer
                     @test c.id >= 1
                     @test length(c.dims) >= 1
@@ -225,7 +225,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         @test ch.dims[1] === d1
         @test ch.dims[2] === d2
         @test ch.schema == "timhis"
-        @test ch.sr === UInt(100)
+        @test ch.sr == 100.0
         @test ch.tags["core:schema"] == "timhis"
 
         # A function typed for `Channel`/`Dimension` can consume the

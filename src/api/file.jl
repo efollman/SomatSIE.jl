@@ -135,9 +135,16 @@ function findchannel(t::Test, chname::AbstractString)
     end
     return nothing
 end
+function findchannel(t::LibSieTest, chname::AbstractString)
+    for c in t.channels
+        c.name == chname && return c
+    end
+    return nothing
+end
 findchannel(chs::AbstractVector{<:Union{Channel,LibSieChannel}}, chname::AbstractString) =
     findfirst(c -> c.name == chname, chs) |> i -> (i === nothing ? nothing : chs[i])
 findchannel(t::Test, chid::Integer) = findchannel(t.channels, chid)
+findchannel(t::LibSieTest, chid::Integer) = findchannel(t.channels, chid)
 findchannel(chs::AbstractVector{<:Union{Channel,LibSieChannel}}, chid::Integer) =
     (i = findfirst(c -> c.id == chid, chs); i === nothing ? nothing : chs[i])
 
