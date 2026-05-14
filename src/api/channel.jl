@@ -92,8 +92,18 @@ function _sample_rate(c::Union{Channel,LibSieChannel})
     s = v isa AbstractString ? v : String(copy(v))
     return something(tryparse(Float64, s), NaN)
 end
-_time(c::Union{Channel,LibSieChannel}) = (_schema(c) == "timhis" && length(_dimensions(c)) >= 1) ? _dimensions(c)[1] : Float64[]
-_data(c::Union{Channel,LibSieChannel}) = (_schema(c) == "timhis" && length(_dimensions(c)) >= 2) ? _dimensions(c)[2] : Float64[]
+function _is_timeseries_schema(c::Union{Channel,LibSieChannel})
+    schema = _schema(c)
+    schema == "timhis" && return true
+    if schema == "somat:sequential"
+        return get(_tags(c), "somat:datamode_type", nothing) == "time_history"
+    end
+    return false
+end
+_time(c::Union{Channel,LibSieChannel}) =
+    (_is_timeseries_schema(c) && length(_dimensions(c)) >= 1) ? _dimensions(c)[1] : Float64[]
+_data(c::Union{Channel,LibSieChannel}) =
+    (_is_timeseries_schema(c) && length(_dimensions(c)) >= 2) ? _dimensions(c)[2] : Float64[]
 
 function _dimension(c::LibSieChannel, i::Integer)
     _check_open(c.parent::SieFile)

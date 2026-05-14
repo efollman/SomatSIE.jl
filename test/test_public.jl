@@ -226,7 +226,18 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         @test ch.dims[2] === d2
         @test ch.schema == "timhis"
         @test ch.sr == 100.0
+        @test ch.time === d1
+        @test ch.data === d2
         @test ch.tags["core:schema"] == "timhis"
+
+        ch_new = Channel(
+            "synthetic_new",
+            [d1, d2];
+            id = 8,
+            tags = Tags("core:schema" => "somat:sequential", "somat:datamode_type" => "time_history"),
+        )
+        @test ch_new.time === d1
+        @test ch_new.data === d2
 
         # A function typed for `Channel`/`Dimension` can consume the
         # synthetic objects without modification:
