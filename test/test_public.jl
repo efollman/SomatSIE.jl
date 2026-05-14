@@ -75,9 +75,13 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
             @test c.name isa AbstractString
             @test c.dims isa Vector
             @test c.tags isa Tags
+            @test c.sr isa Float64
+            @test c.time isa AbstractVector || c.time isa SomatSIE.Dimension
+            @test c.data isa AbstractVector || c.data isa SomatSIE.Dimension
             d = first(c.dims)
             @test d.id isa Integer
             @test d.tags isa Tags
+            @test d.vec !== nothing
             # propertynames advertises the dot-public surface
             @test :tests in propertynames(f)
             @test :id in propertynames(t)
@@ -168,7 +172,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         # VectorChannel: length of dim 1, 0 when empty.
         vc = Channel("c", [Dimension([1.0, 2.0, 3.0])])
         @test length(vc) == 3
-        empty_vc = Channel("e", SomatSIE.AbstractDimension[])
+        empty_vc = Channel("e", Union{SomatSIE.Dimension,SomatSIE.LibSieDimension}[])
         @test length(empty_vc) == 0
     end
 
@@ -193,8 +197,8 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         d2 = Dimension(Float32[10, 20, 30, 40]; id = 2, tags = Tags("core:units" => "V"))
         # Subtype, parametric eltype, AbstractVector behaviour.
         @test d1 isa SomatSIE.Dimension                # abstract supertype
-        @test d1 isa SomatSIE.VectorDimension{Float64}
-        @test d2 isa SomatSIE.VectorDimension{Float32}
+        @test d1 isa SomatSIE.Dimension{Float64}
+        @test d2 isa SomatSIE.Dimension{Float32}
         @test eltype(d1) === Float64
         @test length(d1) == 4
         @test size(d1) == (4,)
@@ -214,7 +218,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
             tags = Tags("core:sample_rate" => "100", "core:schema" => "timhis"),
         )
         @test ch isa SomatSIE.Channel                  # abstract supertype
-        @test ch isa SomatSIE.VectorChannel
+        @test ch isa SomatSIE.Channel
         @test ch.id == 7
         @test ch.name == "synthetic"
         @test length(ch.dims) == 2
@@ -234,7 +238,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
 
         # Empty defaults.
         d3 = Dimension(Int[])
-        @test d3 isa SomatSIE.VectorDimension{Int}
+        @test d3 isa SomatSIE.Dimension{Int}
         @test isempty(d3)
         @test d3.id == 1
         @test d3.tags == Tags()
@@ -279,7 +283,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         # Build a VectorTest via SomatSIE.Test(...).
         t = SomatSIE.Test([ch1, ch2]; id = 5, tags = Tags("operator" => "ef"))
         @test t isa SomatSIE.Test            # abstract supertype
-        @test t isa SomatSIE.VectorTest
+        @test t isa SomatSIE.Test
         @test t.id == 5
         @test length(t.channels) == 2
         @test t.channels[1] === ch1
@@ -290,6 +294,9 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         # `t.channels` and `c.name`.
         @test findchannel(t, "ch_a") === ch1
         @test findchannel(t, "ch_b") === ch2
+        @test findchannel(t, 1) === ch1
+        @test findchannel(t.channels, "ch_a") === ch1
+        @test findchannel(t.channels, 2) === ch2
         @test findchannel(t, "missing") === nothing
 
         # A function typed for `Test` consumes the synthetic test:
@@ -300,8 +307,8 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         @test_throws ArgumentError SomatSIE.Test([ch1, "not a channel"])
 
         # Empty defaults.
-        t0 = SomatSIE.Test(SomatSIE.AbstractChannel[])
-        @test t0 isa SomatSIE.VectorTest
+        t0 = SomatSIE.Test(Union{SomatSIE.Channel,SomatSIE.LibSieChannel}[])
+        @test t0 isa SomatSIE.Test
         @test isempty(t0.channels)
         @test t0.id == 1
         @test t0.tags == Tags()
@@ -320,30 +327,30 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         snapshot_tests = nothing
         opensie(FILE_MIN) do f
             snapshot_tests = detachsie(f)
-            @test snapshot_tests isa Vector{SomatSIE.VectorTest}
+            @test snapshot_tests isa Vector{SomatSIE.Test}
             @test length(snapshot_tests) == length(f.tests)
 
             # Per-level collection.
             t = first(f.tests)
             vt = detachsie(t)
-            @test vt isa SomatSIE.VectorTest
+            @test vt isa SomatSIE.Test
             @test vt.id == t.id
             @test vt.tags == t.tags
             @test length(vt.channels) == length(t.channels)
-            @test all(c isa SomatSIE.VectorChannel for c in vt.channels)
+            @test all(c isa SomatSIE.Channel for c in vt.channels)
 
             c = first(t.channels)
             vc = detachsie(c)
-            @test vc isa SomatSIE.VectorChannel
+            @test vc isa SomatSIE.Channel
             @test vc.name == c.name
             @test vc.id == c.id
             @test vc.tags == c.tags
             @test length(vc.dims) == length(c.dims)
-            @test all(d isa SomatSIE.VectorDimension for d in vc.dims)
+            @test all(d isa SomatSIE.Dimension for d in vc.dims)
 
             d0 = first(c.dims)
             vd = detachsie(d0)
-            @test vd isa SomatSIE.VectorDimension
+            @test vd isa SomatSIE.Dimension
             @test vd.id == d0.id
             @test vd.tags == d0.tags
             @test collect(vd) == collect(d0)
@@ -351,7 +358,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         end
 
         # `snapshot_tests` is detached \u2014 still usable after the file is closed.
-        @test snapshot_tests isa Vector{SomatSIE.VectorTest}
+        @test snapshot_tests isa Vector{SomatSIE.Test}
         for vt in snapshot_tests
             for vc in vt.channels
                 for vd in vc.dims

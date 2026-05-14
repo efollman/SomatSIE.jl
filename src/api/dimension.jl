@@ -22,9 +22,7 @@ Construct an in-memory dimension via:
 
     Dimension(data::AbstractVector; id=1, tags=Tags()) -> VectorDimension
 """
-abstract type AbstractDimension{T} <: AbstractVector{T} end
-
-const Dimension = AbstractDimension
+abstract type FileDimension{T} <: AbstractVector{T} end
 
 """
     LibSieDimension{T} <: AbstractDimension{T}
@@ -32,7 +30,7 @@ const Dimension = AbstractDimension
 A `Dimension` backed by a libsie handle on an open [`SieFile`](@ref).
 Constructed only by the library; reads are cached per-channel.
 """
-struct LibSieDimension{T} <: AbstractDimension{T}
+struct LibSieDimension{T} <: FileDimension{T}
     handle::Ptr{Cvoid}
     parent::Any  # LibSieChannel — typed Any to avoid forward declaration
 end
@@ -42,24 +40,24 @@ end
 
 A `Dimension` whose samples live in a regular Julia `Vector{T}`. Build
 one with `Dimension(data; id=1, tags=Tags())`. Mutable: `vd.id`,
-`vd.tags`, and `vd.data` may all be reassigned.
+`vd.tags`, and `vd.vec` may all be reassigned.
 """
-mutable struct VectorDimension{T} <: AbstractDimension{T}
-    data::Vector{T}
+mutable struct Dimension{T} <: AbstractVector{T}
+    vec::Vector{T}
     id::Int
     tags::Tags
 end
 
 # Public outer constructor — `Dimension(data; ...)` resolves through the
 # `const Dimension = AbstractDimension` alias to this method.
-function (::Type{AbstractDimension})(
+function Dimension(
     data::AbstractVector;
     id::Integer = 1,
     tags::Tags = Tags(),
 )
     v = data isa Vector ? data : collect(data)
     T = eltype(v)
-    return VectorDimension{T}(v, Int(id), tags)
+    return Dimension{T}(v, Int(id), tags)
 end
 
 # Internal accessors — split per concrete type:
@@ -72,27 +70,36 @@ _tags(d::LibSieDimension) = (
     _build_tags(d.handle, Int(L.sie_dimension_num_tags(d.handle)), L.sie_dimension_tag)
 )
 
-_id(d::VectorDimension) = d.id
-_tags(d::VectorDimension) = d.tags
+_id(d::Dimension) = d.id
+_tags(d::Dimension) = d.tags
 
 function Base.getproperty(d::LibSieDimension, sym::Symbol)
     sym === :id && return _id(d)
     sym === :tags && return _tags(d)
+    sym === :vec && return DimensionVecRef(d)
     return getfield(d, sym)
 end
-function Base.getproperty(d::VectorDimension, sym::Symbol)
-    return getfield(d, sym)   # id, tags, data are real fields
+function Base.getproperty(d::Dimension, sym::Symbol)
+    sym === :data && return getfield(d, :vec)
+    return getfield(d, sym)
 end
-Base.propertynames(d::AbstractDimension, private::Bool = false) =
-    private ? (fieldnames(typeof(d))..., :id, :tags) : (:id, :tags)
+Base.propertynames(d::Union{Dimension,LibSieDimension}, private::Bool = false) =
+    private ? (fieldnames(typeof(d))..., :id, :tags, :vec) : (:id, :tags, :vec)
 
-Base.show(io::IO, d::AbstractDimension) =
+Base.show(io::IO, d::Union{Dimension,LibSieDimension}) =
     print(io, "Dimension{", eltype(d), "}(id=", _id(d), ", n=", length(d), ")")
 
 # ── VectorDimension: AbstractArray interface (delegates to backing data) ──
-Base.size(d::VectorDimension) = size(d.data)
-Base.IndexStyle(::Type{<:VectorDimension}) = IndexLinear()
-Base.@propagate_inbounds Base.getindex(d::VectorDimension, i::Integer) = d.data[i]
+Base.size(d::Dimension) = size(d.vec)
+Base.IndexStyle(::Type{<:Dimension}) = IndexLinear()
+Base.@propagate_inbounds Base.getindex(d::Dimension, i::Integer) = d.vec[i]
+
+struct DimensionVecRef{T}
+    dim::LibSieDimension{T}
+end
+Base.read(r::DimensionVecRef) = collect(r.dim)
+Base.read(r::DimensionVecRef, i::Integer) = r.dim[i:i]
+Base.read(r::DimensionVecRef, idx::AbstractUnitRange{<:Integer}) = r.dim[idx]
 
 # ── LibSieDimension: cache-routed access ──
 #
