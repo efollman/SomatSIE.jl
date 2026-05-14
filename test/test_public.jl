@@ -118,51 +118,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         end
     end
 
-    @testset "Dimension as a vector (indexing / collect)" begin
-        opensie(FILE_MIN) do f
-            ch = first(first(f.tests).channels)
-            for dim in ch.dims
-                full = collect(dim)
-                n = length(full)
-                @test length(dim) == n
-                @test size(dim) == (n,)
-                @test eltype(dim) === eltype(full)
-                # dim[:] equals collect(dim)
-                @test dim[:] == full
-                if n > 0
-                    @test dim[1] == full[1]
-                    @test dim[end] == full[end]
-                    @test firstindex(dim) == 1
-                    @test lastindex(dim) == n
-                    mid = (n + 1) ÷ 2
-                    @test dim[mid] == full[mid]
-                    # range read
-                    lo = mid
-                    hi = min(n, mid + 3)
-                    @test dim[lo:hi] == full[lo:hi]
-                    # iteration matches collect
-                    @test [x for x in dim] == full
-                end
-                # bounds
-                @test_throws BoundsError dim[0]
-                @test_throws BoundsError dim[n+1]
-            end
-        end
-    end
-
-    @testset "collect(dim) eltype contract" begin
-        opensie(FILE_MIN) do f
-            ch = first(first(f.tests).channels)
-            for dim in ch.dims
-                v = collect(dim)
-                @test v isa AbstractVector
-                # Float64 column → Vector{Float64}; raw → Vector{Vector{UInt8}}
-                @test eltype(v) === Float64 || eltype(v) === Vector{UInt8}
-                @test length(v) >= 0
-            end
-        end
-    end
-
+    
     @testset "length(::Channel)" begin
         # LibSieChannel: matches its dimensions' length.
         opensie(FILE_MIN) do f
@@ -201,11 +157,11 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         @test d2 isa SomatSIE.Dimension{Float32}
         @test eltype(d1) === Float64
         @test length(d1) == 4
-        @test size(d1) == (4,)
-        @test d1[1] == 1.0
-        @test d1[2:3] == [2.0, 3.0]
-        @test collect(d1) == [1.0, 2.0, 3.0, 4.0]
-        @test sum(d1) == 10.0                          # iterates via AbstractArray
+        @test length(d1) == 4
+        @test d1.vec[1] == 1.0
+        @test d1.vec[2:3] == [2.0, 3.0]
+        @test d1.vec == [1.0, 2.0, 3.0, 4.0]
+        @test sum(d1.vec) == 10.0
         # Property accessors.
         @test d1.id == 1
         @test d1.tags["core:units"] == "s"
@@ -241,7 +197,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
 
         # A function typed for `Channel`/`Dimension` can consume the
         # synthetic objects without modification:
-        sample_at(c::SomatSIE.Channel, i::Integer) = (c.dims[1][i], c.dims[2][i])
+        sample_at(c::SomatSIE.Channel, i::Integer) = (c.dims[1].vec[i], c.dims[2].vec[i])
         @test sample_at(ch, 3) == (3.0, 30.0f0)
 
         # Reject non-FileDimension entries up-front.
@@ -250,7 +206,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         # Empty defaults.
         d3 = Dimension(Int[])
         @test d3 isa SomatSIE.Dimension{Int}
-        @test isempty(d3)
+        @test isempty(d3.vec)
         @test d3.id == 1
         @test d3.tags == Tags()
     end
@@ -259,10 +215,10 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         vd = Dimension([1.0, 2.0, 3.0]; id = 1, tags = Tags("u" => "s"))
         vd.id = 7
         vd.tags = Tags("u" => "ms")
-        vd.data = [10.0, 20.0]
+        vd.vec = [10.0, 20.0]
         @test vd.id == 7
         @test vd.tags["u"] == "ms"
-        @test collect(vd) == [10.0, 20.0]
+        @test vd.vec == [10.0, 20.0]
         @test length(vd) == 2
 
         vc = Channel("a", [vd]; id = 1)
@@ -270,7 +226,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         vc.id = 2
         vc.tags = Tags("core:schema" => "timhis")
         vd2 = Dimension([0.0])
-        vc.dims = Union{SomatSIE.Dimension,SomatSIE.LibSieDimension}[vd, vd2]
+        vc.dims = SomatSIE.Dimension[vd, vd2]
         @test vc.name == "b"
         @test vc.id == 2
         @test vc.schema == "timhis"
@@ -279,7 +235,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         vt = SomatSIE.Test([vc]; id = 1)
         vt.id = 9
         vt.tags = Tags("op" => "ef")
-        vt.channels = Union{SomatSIE.Channel,SomatSIE.LibSieChannel}[vc]
+        vt.channels = SomatSIE.Channel[vc]
         @test vt.id == 9
         @test vt.tags["op"] == "ef"
         @test length(vt.channels) == 1
@@ -318,7 +274,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         @test_throws ArgumentError SomatSIE.Test([ch1, "not a channel"])
 
         # Empty defaults.
-        t0 = SomatSIE.Test(Union{SomatSIE.Channel,SomatSIE.LibSieChannel}[])
+        t0 = SomatSIE.Test(SomatSIE.Channel[])
         @test t0 isa SomatSIE.Test
         @test isempty(t0.channels)
         @test t0.id == 1
@@ -364,7 +320,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
             @test vd isa SomatSIE.Dimension
             @test vd.id == d0.id
             @test vd.tags == d0.tags
-            @test collect(vd) == collect(d0)
+            @test vd.vec == read(d0.vec)
             @test eltype(vd) === eltype(d0)
         end
 
@@ -373,7 +329,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         for vt in snapshot_tests
             for vc in vt.channels
                 for vd in vc.dims
-                    v = collect(vd)
+                    v = vd.vec
                     @test v isa AbstractVector
                 end
             end

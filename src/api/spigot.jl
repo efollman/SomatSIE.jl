@@ -107,23 +107,68 @@ each block costs a single `ccall` instead of one per sample.
 function _readdim(d::LibSieDimension)
     ch = d.parent::LibSieChannel
     file = ch.parent::SieFile
-    cache = _channel_cache(file, ch)
     et = eltype(d)
-    cache.total_rows == 0 && return et === Float64 ? Float64[] : Vector{UInt8}[]
     dimid = _id(d)
-    result =
-        et === Float64 ? Vector{Float64}(undef, cache.total_rows) :
-        Vector{Vector{UInt8}}(undef, cache.total_rows)
-    pos = 1
-    @inbounds for b = 1:cache.nblocks
-        block = _block_for(cache, dimid, b)
-        n = length(block)
-        for k = 1:n
-            result[pos+k-1] = block[k]
+    result = et === Float64 ? Float64[] : Vector{UInt8}[]
+    spigot(file, ch) do s
+        out = next!(s)
+        while out !== nothing
+            nr = numrows(out)
+            block = _decode_block(out, dimid, nr, coltype(out, dimid))
+            if et === Float64
+                append!(result::Vector{Float64}, block)
+            else
+                append!(result::Vector{Vector{UInt8}}, block)
+            end
+            out = next!(s)
         end
-        pos += n
     end
     return result
+end
+
+function _decode_block(out::Output, dimid::Int, nr::Int, ct::Symbol)
+    d0 = Csize_t(dimid - 1)
+    written = Ref{Csize_t}(0)
+    if ct === :float64
+        buf = Vector{Float64}(undef, nr)
+        if nr > 0
+            GC.@preserve buf _check(
+                L.sie_output_get_float64_range(
+                    out.handle,
+                    d0,
+                    Csize_t(0),
+                    Csize_t(nr),
+                    pointer(buf),
+                    written,
+                ),
+            )
+        end
+        return buf
+    elseif ct === :raw
+        buf = Vector{Vector{UInt8}}(undef, nr)
+        if nr > 0
+            ptrs = Vector{Ptr{UInt8}}(undef, nr)
+            sizes = Vector{UInt32}(undef, nr)
+            GC.@preserve ptrs sizes _check(
+                L.sie_output_get_raw_range(
+                    out.handle,
+                    d0,
+                    Csize_t(0),
+                    Csize_t(nr),
+                    pointer(ptrs),
+                    pointer(sizes),
+                    written,
+                ),
+            )
+            @inbounds for i = 1:nr
+                p, n = ptrs[i], Int(sizes[i])
+                buf[i] = (p == C_NULL || n == 0) ? UInt8[] : copy(unsafe_wrap(Array, p, n; own = false))
+            end
+        end
+        return buf
+    else
+        error("dimension $dimid has no data type (:none)")
+    end
 end
 
 """
@@ -136,7 +181,17 @@ block rather than per sample, so cheap even for multi-million-row channels.
 Useful when constructing a time axis for a sequential time-history channel
 directly from `core:sample_rate` instead of reading dim-0.
 """
-numrows(file::SieFile, ch::LibSieChannel) = _channel_cache(file, ch).total_rows
+function numrows(file::SieFile, ch::LibSieChannel)
+    total = 0
+    spigot(file, ch) do s
+        out = next!(s)
+        while out !== nothing
+            total += numrows(out)
+            out = next!(s)
+        end
+    end
+    return total
+end
 
 Base.show(io::IO, s::Spigot) =
     print(io, "Spigot(channel=", _id(s.channel), isopen(s) ? "" : ", closed", ")")
