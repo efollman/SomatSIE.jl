@@ -76,8 +76,23 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
             @test c.dims isa Vector
             @test c.tags isa Tags
             @test c.sr isa Float64
+            @test c.description isa AbstractString
+            @test c.datatype isa AbstractString
+            @test c.filtfreq isa Float64
+            @test c.filttype isa AbstractString
+            @test c.rangemin isa Float64
+            @test c.rangemax isa Float64
+            @test c.eunits isa AbstractString
+            @test c.erangemin isa Float64
+            @test c.erangemax isa Float64
             @test c.time isa AbstractVector || c.time isa SomatSIE.Dimension
             @test c.data isa AbstractVector || c.data isa SomatSIE.Dimension
+            @test first(c.dims).label isa AbstractString
+            @test first(c.dims).units isa AbstractString
+            @test first(c.dims).description isa AbstractString
+            @test c.dims[min(2, length(c.dims))].label isa AbstractString
+            @test c.dims[min(2, length(c.dims))].units isa AbstractString
+            @test c.dims[min(2, length(c.dims))].description isa AbstractString
             d = first(c.dims)
             @test d.id isa Integer
             @test d.tags isa Tags
@@ -165,6 +180,7 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         # Property accessors.
         @test d1.id == 1
         @test d1.tags["core:units"] == "s"
+        @test d1.description == ""
 
         # Build a Channel via the public Channel(...) constructor.
         ch = Channel(
@@ -182,8 +198,19 @@ using SomatSIE: SieFile, Tags, Channel, Dimension, opensie, findchannel
         @test ch.dims[2] === d2
         @test ch.schema == "timhis"
         @test ch.sr == 100.0
+        @test ch.description == ""
+        @test ch.datatype == ""
+        @test isnan(ch.filtfreq)
+        @test ch.filttype == ""
+        @test isnan(ch.rangemin)
+        @test isnan(ch.rangemax)
+        @test ch.eunits == ""
+        @test isnan(ch.erangemin)
+        @test isnan(ch.erangemax)
         @test ch.time === d1
         @test ch.data === d2
+        @test ch.time.units == "s"
+        @test ch.data.units == "V"
         @test ch.tags["core:schema"] == "timhis"
 
         ch_new = Channel(
