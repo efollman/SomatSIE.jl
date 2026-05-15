@@ -7,7 +7,7 @@
 ## Installation
 
 ```julia
-] add SomatSIE
+Pkg.add("SomatSIE")
 ```
 
 ## Quick start
@@ -37,9 +37,7 @@ end
 `SieFile`, `Test`, `Channel`, and `Dimension` all expose their public
 accessors as dot properties — `f.tests`, `f.tags`, `t.id`,
 `t.channels`, `t.tags`, `ch.id`, `ch.name`, `ch.dims`, `ch.tags`,
-`ch.schema`, `ch.sr`, `ch.description`, `ch.datatype`, `ch.filtfreq`,
-`ch.filttype`, `ch.rangemin`, `ch.rangemax`, `ch.eunits`, `ch.erangemin`,
-`ch.erangemax`, `ch.time`, `ch.data`, `dim.id`, `dim.tags`, `dim.vec`,
+`ch.schema`, `dim.id`, `dim.tags`, `dim.vec`,
 `dim.data`, `dim.label`, `dim.units`, `dim.description`. There are no
 equivalent accessor functions; use the property syntax everywhere. The type names
 themselves are unexported — qualify them as `SomatSIE.SieFile`,
@@ -79,10 +77,6 @@ haskey(ts, "core:schema")
 
 ## API surface
 
-A full reference — every public type, every dot-property, every
-function — lives in [JuliaAPI.md](JuliaAPI.md). The summary below
-covers the most common patterns.
-
 Core types (all unexported — qualify with `SomatSIE.`):
 `SomatSIE.SieFile`, `SomatSIE.Tags`, `SomatSIE.SieError`,
 `SomatSIE.Test`, `SomatSIE.Channel`, `SomatSIE.Dimension`. `Tags` is a
@@ -113,25 +107,6 @@ tag (or `nothing`), and `ch.sr` returns the `core:sample_rate` tag parsed as `Fl
 > Spigot and Output are kept internal (`SomatSIE.spigot`,
 > `SomatSIE.Output`) so the public surface stays small. Prefer
 > `dim[i]` / `dim[a:b]` / `collect(dim)`.
-
-## Plotting and DataFrames
-
-`Dimension` is a proper `AbstractVector{T}` (with `T` probed at construction:
-`Float64` for engineering values, `Vector{UInt8}` for raw payloads), so it
-plugs into the rest of the ecosystem with no extra glue:
-
-```julia
-using SomatSIE, DataFrames, CairoMakie
-opensie("file.sie") do f
-    ch = first(first(f.tests).channels)
-    df = DataFrame(:t => ch.dims[1], :v => ch.dims[2])   # auto-collected
-    lines(ch.dims[1], ch.dims[2])                        # time vs. value
-    scatter(ch.dims[2])
-end
-```
-
-Indexing (`dim[i]`, `dim[a:b]`) still goes through the per-channel block
-cache, so reading is incremental — only the blocks you touch are decoded.
 
 ## Building tests, channels, and dimensions in memory
 
@@ -170,30 +145,29 @@ data into existing pipelines without changing their type signatures.
 
 ### Snapshotting a file with `detachsie`
 
-`detachsie` materializes any libsie-backed value into its in-memory
-`Vector*` variant, recursively. The result is fully detached from the
+`detachsie` materializes any libsie-backed value into its in-memory variant, recursively. The result is fully detached from the
 source `SieFile` and remains valid after the file is closed:
 
 ```julia
 snapshot = opensie("file.sie") do f
-    detachsie(f)        # Vector{VectorTest}
+    detachsie(f)        # Vector{Test}
 end
 # `snapshot` is still usable here; the file handle is gone.
 
 # Per-level: works on a Test, Channel, or Dimension too.
 opensie("file.sie") do f
-    vt = detachsie(first(f.tests))             # VectorTest
-    vc = detachsie(first(first(f.tests).channels))  # VectorChannel
-    vd = detachsie(first(first(first(f.tests).channels).dims))  # VectorDimension
+    vt = detachsie(first(f.tests))             # Test
+    vc = detachsie(first(first(f.tests).channels))  # Channel
+    vd = detachsie(first(first(first(f.tests).channels).dims))  # Dimension
 end
 ```
 
-`detachsie` is idempotent and zero-copy on already-in-memory values \u2014
-calling it on a `VectorChannel` returns the same object (`===`).
+`detachsie` is idempotent and zero-copy on already-in-memory values,
+calling it on a `Channel` returns the same object (`===`).
 
 ## Limitations
 
-The C ABI exposed by `libsie_jll` (v0.3) is read-only in this package: there is currently no high-level write API for creating or editing SIE files.
+This package is currently read only.
 
 ## License
 

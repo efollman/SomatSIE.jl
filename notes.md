@@ -1,6 +1,7 @@
 ## General Notes
 
 - consider ensureing data and time convienence props should maybe return empty vector if not TS (unsure what it does now) to keep things from breaking
+- check if there really is a dim.data alias for dim.vec, remove as it is uneccisarry
 
 ## Future Optimizations
 
