@@ -73,7 +73,6 @@ include("api/test.jl")
 include("api/file.jl")
 include("api/output.jl")
 include("api/spigot.jl")
-include("api/cache.jl")
 include("api/collect.jl")
 
 # Public surface
@@ -84,6 +83,6 @@ include("api/collect.jl")
 # avoids name collisions with `Base.Channel` (Tasks), `Test.Test` (the
 # stdlib testing module), and any user-defined `SieFile`/`Tags`/`Dimension`.
 # Only the verbs `opensie` and `findchannel` are exported.
-export opensie, findchannel, detachsie
+export opensie, readsie, findchannel, detachsie
 
 end # module SomatSIE

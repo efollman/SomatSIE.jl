@@ -233,9 +233,7 @@ indexing / iteration idioms:
 | `collect(dim)` / `dim[:]`   | full vector (`Float64` or `Vector{UInt8}`)        | every block, one bulk ccall each     |
 | `for x in dim ... end`      | iterates samples                                  | materializes once via `collect`      |
 
-`Dimension` is intentionally **not** a subtype of `AbstractVector` (the
-element type is data-dependent), but the methods above cover the common
-vector idioms.
+`Dimension` is a proper subtype of `AbstractVector{T}`; `T` is inferred as `Float64` for engineering-value columns and `Vector{UInt8}` for raw-byte columns.
 
 ### `collect(dim::Dimension) -> Vector`
 
@@ -275,13 +273,13 @@ end
 
 ## Quick reference: exported names
 
-Types:
+Types (unexported; qualify with `SomatSIE.`):
 
-`SieFile`, `Tags`, `SieError`
+`SieFile`, `Test`, `Channel`, `Dimension`, `Tags`, `SieError`
 
-Functions:
+Exported functions:
 
-`opensie`, `findchannel`
+`opensie`, `readsie`, `findchannel`, `detachsie`
 
 Navigation and identity are accessed as **dot properties** on the
 returned types (`f.tests`, `f.tags`, `t.id`, `t.channels`,
