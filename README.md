@@ -20,13 +20,11 @@ opensie("myfile.sie") do f
 
     for t in f.tests, ch in t.channels
         for dim in ch.dims
-            # A `Dimension` behaves like a 1-D collection of samples:
-            #   * `collect(dim)` (alias `dim[:]`) returns the full vector —
-            #       `:float64` columns -> Vector{Float64} of engineering values
-            #       `:raw`     columns -> Vector{Vector{UInt8}} (e.g. CAN frames)
-            #   * `dim[i]` reads a single sample (only the containing block).
-            #   * `dim[a:b]` reads a sub-range (only the overlapping blocks).
-            data  = collect(dim)
+            # A `Dimension` is metadata + data vector:
+            #   * `dim.vec` (alias `dim.data`) is the full backing vector
+            #   * `dim[i]` / `dim[a:b]` index that vector
+            #   * use `collect(dim)` only when you explicitly want a copy
+            data  = dim.vec
             units = get(dim.tags, "core:units", nothing)
             println("  ", ch.name, " dim ", dim.id,
                     "  ", typeof(data), " len=", length(data),
@@ -39,8 +37,11 @@ end
 `SieFile`, `Test`, `Channel`, and `Dimension` all expose their public
 accessors as dot properties — `f.tests`, `f.tags`, `t.id`,
 `t.channels`, `t.tags`, `ch.id`, `ch.name`, `ch.dims`, `ch.tags`,
-`ch.schema`, `ch.sr`, `dim.id`, `dim.tags`. There are no equivalent
-accessor functions; use the property syntax everywhere. The type names
+`ch.schema`, `ch.sr`, `ch.description`, `ch.datatype`, `ch.filtfreq`,
+`ch.filttype`, `ch.rangemin`, `ch.rangemax`, `ch.eunits`, `ch.erangemin`,
+`ch.erangemax`, `ch.time`, `ch.data`, `dim.id`, `dim.tags`, `dim.vec`,
+`dim.data`, `dim.label`, `dim.units`, `dim.description`. There are no
+equivalent accessor functions; use the property syntax everywhere. The type names
 themselves are unexported — qualify them as `SomatSIE.SieFile`,
 `SomatSIE.Channel`, etc. — but values returned by `opensie`,
 `f.tests`, `t.channels`, and `ch.dims` need no qualification.
@@ -88,13 +89,10 @@ Core types (all unexported — qualify with `SomatSIE.`):
 type alias for `Dict{String, Union{String, Vector{UInt8}}}`.
 
 Opening / reading: `opensie(path) do f ... end` to open a file (the
-do-block guarantees the handle is released). Each `Dimension` behaves
-like a 1-D collection of samples: `dim[i]` reads a single sample (only
-the containing block is fetched), `dim[a:b]` reads a range (only the
-overlapping blocks are fetched), and `collect(dim)` (also `dim[:]`)
-materializes the entire dimension into a typed `Vector{Float64}` (or
-`Vector{Vector{UInt8}}` for raw columns). Internally these use libsie's
-bulk per-block getters — one `ccall` per block, not per sample.
+do-block guarantees the handle is released). Each `Dimension` exposes
+its backing vector as `dim.vec` (alias `dim.data`), so `dim[i]` and
+`dim[a:b]` index the vector directly. `collect(dim)` returns a copy when
+you explicitly want a separate vector.
 
 Navigation: dot-property accessors `f.tests`, `t.channels`,
 `ch.dims`, `x.tags`, plus `findchannel(test, name)`. Channels
@@ -110,63 +108,11 @@ Identity: `x.id`; channels also have `ch.name`. All `id` properties
 sequential time-series channels.
 
 Channel convenience accessors: `ch.schema` returns the `core:schema`
-tag (or `nothing`), and `ch.sr` returns the `core:sample_rate` tag
-parsed as a `UInt` (falling back to `Float64`, or `nothing` if unset
-or unparseable). Both are shorthands over `ch.tags`.
+tag (or `nothing`), and `ch.sr` returns the `core:sample_rate` tag parsed as `Float64` (`NaN` if unset or unparseable). Both are shorthands over `ch.tags`.
 
 > Spigot and Output are kept internal (`SomatSIE.spigot`,
 > `SomatSIE.Output`) so the public surface stays small. Prefer
 > `dim[i]` / `dim[a:b]` / `collect(dim)`.
-
-## Caching vs. materializing — when to use which
-
-Every libsie-backed `Dimension` reads through a per-`Channel` block
-cache: a persistent spigot is opened on first access and reused, decoded
-blocks are memoized in a small LRU keyed by `(block_idx, dim_id)`, and a
-cumulative-row offset table lets `dim[i]` and `dim[a:b]` jump straight
-to the containing block. The result is that **partial / random access
-on large files is cheap** — only the blocks you touch are decoded, and
-re-touching the same neighborhood costs nothing. This is the right tool
-for browsing, previewing, plotting a slice, or extracting a few channels
-out of a multi-gigabyte file.
-
-If you intend to do **substantial work on a dimension's data**
-(filtering, FFTs, statistics, repeated full passes), pull the data out
-of the cache once and operate on a plain `Vector` instead. Each cached
-read still pays a dictionary lookup, an LRU touch, and bounds checks
-per call; a `Vector` does none of that and inlines into tight loops.
-Two equivalent escape hatches:
-
-```julia
-opensie("file.sie") do f
-    ch = first(first(f.tests).channels)
-
-    # 1. Per dimension — cheapest, returns a typed Vector{Float64}
-    #    (or Vector{Vector{UInt8}} for raw columns).
-    v = collect(ch.dims[2])
-    # ... heavy work on `v` ...
-
-    # 2. Whole tree at once — detaches everything from the file so you
-    #    can keep working after the do-block returns.
-    snapshot = detachsie(f)
-    # or
-    testSnap = detachsie(f.tests[1])
-    # or
-    chSnap = detachsie(f.tests[1].channels[1])
-    # or
-    dimSnap = detachsie(f.tests[1].channels[1].dims[1])
-    # this is designed so only the information that is really needed can be loaded into memory
-    # avoiding unnecessary work.
-end
-# `snapshot` is a Vector{VectorTest}; the file handle is gone but
-# every dim, channel, and test is still fully usable.
-```
-
-Rule of thumb: **small files or whole-channel processing → `detachsie`
-/ `collect(dim)` once, then forget the file.** **Large files or sparse
-access → keep the `SieFile` open and let the cache do its job.** Both
-paths return identical values; the choice is purely about per-access
-overhead.
 
 ## Plotting and DataFrames
 
@@ -210,7 +156,7 @@ ch = Channel("synthetic_sine", [t, v];
                          "core:schema"      => "timhis"))
 
 ch.name              # "synthetic_sine"
-ch.sr                # UInt(100)
+ch.sr                # 100.0
 ch.dims[2][1:5]      # works just like a libsie-backed dim
 collect(ch.dims[1])  # returns a Vector{Float64}
 
