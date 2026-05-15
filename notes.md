@@ -1,6 +1,9 @@
 ## General Notes
 
-- consider ensureing data and time convienence props should maybe return empty vector if not TS (unsure what it does now) to keep things from breaking
+- data and time properties should return empty dim with .vec returning empty vec to keep things from breaking (currently returns empty vec directly) 
+    - consider if vector containing one 0 makes sense as well. 
+    - or to fix proplem figure out how to construct TS channels
+    - or consider dummy dimensions should be settable?
 - check if there really is a dim.data alias for dim.vec, remove as it is uneccisarry
 
 ## Future Optimizations
