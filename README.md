@@ -54,7 +54,7 @@ them in your own code.
 All types are unexported and accessed as `SomatSIE.<Type>` to avoid name
 clashes with `Base.Channel` (Tasks), `Test.Test` (the stdlib testing
 module), and any user-defined `SieFile`/`Tags`/`Dimension`. Only the
-verbs `opensie` and `findchannel` are exported.
+verbs `opensie`, `readsie`, `detachsie`, and `findchannel` are exported.
 
 | Type | Purpose |
 |------|---------|
@@ -62,7 +62,7 @@ verbs `opensie` and `findchannel` are exported.
 | `SomatSIE.Test` | A test (acquisition session) within a file. |
 | `SomatSIE.Channel` | A data series. |
 | `SomatSIE.Dimension` | A single column/axis of a channel. |
-| `SomatSIE.Tags` | A `Dict{String, Union{String, Vector{UInt8}}}` of metadata returned by `x.tags`. |
+| `SomatSIE.Tags` | A `Dict` of metadata returned by `x.tags`. |
 | `SomatSIE.SieError` | Exception type for libsie / file-open errors. |
 
 Tags are plain Julia dicts:
