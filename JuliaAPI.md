@@ -7,8 +7,7 @@ for reading HBM/Somat eDAQ SIE acquisition files.
 The public API is intentionally small and is organized around a single
 top-level type — [`SieFile`](#siefile) — plus value/metadata types
 (`Test`, `Channel`, `Dimension`, `Tags`) and the `SieError` exception.
-Files are opened with [`opensie`](#siefile); per-dimension data is
-materialized via `collect(dim)` (or `dim[:]`).
+Files are opened with [`opensie`](#siefile); dimension values are exposed via `dim.vec` (alias `dim.data`).
 
 > The libsie 0.3 ABI is **read-only**: there is no SIE writer.
 
@@ -155,21 +154,32 @@ is absent. Equivalent to `get(ch.tags, "core:schema", nothing)`. The
 schema string identifies the channel's data shape (e.g. `"timhis"`,
 `"can_raw"`, `"msglog"`).
 
-### `ch.sr -> Union{UInt, Float64, Nothing}`
+### `ch.sr -> Float64`
 
-Convenience accessor for the `core:sample_rate` tag, parsed as a number,
-or `nothing` if the tag is absent. Tries `UInt` first and falls back to
-`Float64` for non-integer rates; `Vector{UInt8}` tag values are decoded
-as UTF-8 before parsing. Returns `nothing` if the tag is present but
-unparseable.
+Convenience accessor for the `core:sample_rate` tag parsed as `Float64`.
+Returns `NaN` when the tag is missing or unparseable.
 
 ```julia
 for t in f.tests, ch in t.channels
     ch.schema == "timhis" || continue
-    rate = ch.sr                        # UInt, Float64, or nothing
+    rate = ch.sr                        # Float64 (or NaN)
     @show ch.name, rate
 end
 ```
+
+
+### Additional channel convenience properties
+
+All of the following are available on both libsie-backed and in-memory channels:
+
+- `ch.description` → `core:description` tag (string; `""` when missing)
+- `ch.datatype` → `data_type` tag (string; `""` when missing)
+- `ch.filtfreq` → `somat:digital_filter_attenuation_frequency` parsed as `Float64` (`NaN` when missing/unparseable)
+- `ch.filttype` → `somat:digital_filter_type` tag
+- `ch.rangemin` / `ch.rangemax` → `somat:physical_range_min` / `somat:physical_range_max` as `Float64`
+- `ch.eunits` → `somat:electrical_units` tag
+- `ch.erangemin` / `ch.erangemax` → electrical min/max as `Float64`
+- `ch.time` / `ch.data` → convenience dimensions for time-history channels (`timhis` or sequential `time_history`), otherwise empty `Float64[]`
 
 ---
 
@@ -185,8 +195,28 @@ sequential time-series channels). Note: this differs from the libsie/file
 
 ### `dim.tags -> Tags`
 
-Per-dimension tag dictionary. Useful for `core:units`, `core:sample_rate`,
-etc.
+Per-dimension tag dictionary.
+
+### `dim.vec -> AbstractVector`
+
+Primary data vector for the dimension. This is the canonical property to use
+when you want the full series as a vector.
+
+### `dim.data -> AbstractVector`
+
+Alias of `dim.vec` (same object for in-memory dimensions).
+
+### `dim.label -> String`
+
+Convenience accessor for `core:label`; empty string when absent.
+
+### `dim.units -> String`
+
+Convenience accessor for `core:units`; empty string when absent.
+
+### `dim.description -> String`
+
+Convenience accessor for `core:description`; empty string when absent.
 
 ---
 
@@ -221,53 +251,20 @@ units = haskey(ts, "core:units") ? ts["core:units"] : ""
 
 ## Reading data
 
-A `Dimension` behaves like a 1-D collection of samples. Use the standard
-indexing / iteration idioms:
+`Dimension` is an `AbstractVector`, and the full vector is exposed as
+`dim.vec` (alias `dim.data`).
 
-| Idiom                       | What it returns                                   | What gets read                       |
+| Idiom                       | What it returns                                   | Notes                                |
 |-----------------------------|---------------------------------------------------|--------------------------------------|
-| `length(dim)` / `size(dim)` | sample count                                      | one spigot walk (no per-sample I/O)  |
-| `eltype(dim)`               | `Float64` or `Vector{UInt8}`                      | first block only                     |
-| `dim[i]`                    | one sample                                        | only the block containing row `i`    |
-| `dim[a:b]`                  | sub-range vector                                  | only the blocks overlapping `a:b`    |
-| `collect(dim)` / `dim[:]`   | full vector (`Float64` or `Vector{UInt8}`)        | every block, one bulk ccall each     |
-| `for x in dim ... end`      | iterates samples                                  | materializes once via `collect`      |
+| `length(dim)` / `size(dim)` | sample count                                      | vector length                        |
+| `eltype(dim)`               | `Float64` or `Vector{UInt8}`                      | column element type                  |
+| `dim[i]`                    | one sample                                        | standard vector indexing             |
+| `dim[a:b]`                  | sub-range vector                                  | standard range indexing              |
+| `dim.vec` / `dim.data`      | full backing vector                               | preferred full-series access         |
+| `collect(dim)`              | copied vector                                     | explicit copy                        |
 
-`Dimension` is a proper subtype of `AbstractVector{T}`; `T` is inferred as `Float64` for engineering-value columns and `Vector{UInt8}` for raw-byte columns.
-
-### `collect(dim::Dimension) -> Vector`
-
-Materialize the entire data series for a single dimension into a Julia
-vector. Equivalent to `dim[:]`. The element type is chosen from the
-dimension's column type:
-
-* `:float64` columns return a `Vector{Float64}` of engineering-scaled
-  samples.
-* `:raw` columns return a `Vector{Vector{UInt8}}`, one byte string per
-  sample (e.g. CAN frames).
-* `:none` raises an error.
-
-The `Dimension` recovers the owning `SieFile` itself, so you never need
-to thread the file handle through the call.
-
-Internally walks the channel's spigot once and pulls each block via the
-libsie bulk getters (`sie_output_get_float64_range` /
-`sie_output_get_raw_range`) — one `ccall` per block, not per sample —
-so it is cheap even for multi-million-row channels. `dim[a:b]` uses the
-same bulk getters but only on the overlapping blocks.
-
-```julia
-opensie("can.sie") do f
-    for t in f.tests, ch in t.channels
-        for dim in ch.dims
-            data  = collect(dim)            # or: dim[:]
-            units = get(dim.tags, "core:units", nothing)
-            @show ch.name, dim.id, eltype(data), length(data), units
-            @show dim[1], dim[end]          # cheap — single-block reads
-        end
-    end
-end
-```
+Use `dim.vec` when you want the whole series without introducing an extra copy.
+Use `collect(dim)` when you need a distinct vector for mutation or ownership boundaries.
 
 ---
 
@@ -283,8 +280,11 @@ Exported functions:
 
 Navigation and identity are accessed as **dot properties** on the
 returned types (`f.tests`, `f.tags`, `t.id`, `t.channels`,
-`t.tags`, `ch.id`, `ch.name`, `ch.dims`, `ch.tags`, `dim.id`,
-`dim.tags`) — there are no exported `tests` / `channels` /
+`t.tags`, `ch.id`, `ch.name`, `ch.dims`, `ch.tags`, `ch.schema`, `ch.sr`,
+`ch.description`, `ch.datatype`, `ch.filtfreq`, `ch.filttype`, `ch.rangemin`,
+`ch.rangemax`, `ch.eunits`, `ch.erangemin`, `ch.erangemax`, `ch.time`, `ch.data`,
+`dim.id`, `dim.tags`, `dim.vec`, `dim.data`, `dim.label`, `dim.units`,
+`dim.description`) — there are no exported `tests` / `channels` /
 `dimensions` / `tags` / `id` / `name` functions.
 
 > Counts are obtained via `length(f.tests)`, `length(t.channels)`,
